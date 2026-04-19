@@ -85,9 +85,15 @@
       copy:
         dest: "{{ marzban_data_dir }}/ssl_client_cert.pem"
         content: "{{ panel_client_cert }}"
-        mode: "0600"
+        mode: "0644"
 
     # ─── Start Marzban Node ──────────────────────────────
+
+    - name: Stop and remove containers
+      shell: docker compose down
+      args:
+        chdir: "{{ marzban_node_dir }}"
+      ignore_errors: true
 
     - name: Start Marzban Node
       shell: docker compose up -d
