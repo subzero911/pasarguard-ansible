@@ -122,29 +122,18 @@
 
     # ─── Output ───────────────────────────────────────────────────────────────
 
-    - name: Read client certificate
-      slurp:
-        src: "{{ marzban_data_dir }}/ssl_client_cert.pem"
-      register: client_cert
-
     - name: Print setup summary
       debug:
-        msg: |
-          ════════════════════════════════════════════
-           MARZBAN NODE READY — {{ inventory_hostname }}
-          ════════════════════════════════════════════
-
-          📋 Client Certificate (Settings → Nodes → Client Certificate):
-          {{ client_cert.content | b64decode }}
-
-          🔑 xray x25519 keypair (для Reality inbound):
-          {{ xray_keypair.stdout }}
-
-          🔑 shortId:
-          {{ xray_short_id.stdout }}
-
-          🌐 Node address : {{ ansible_host }}
-          🔌 Service port : {{ service_port }}
-          🔌 Xray API port: {{ xray_api_port }}
-          🔌 Inbound port : {{ extra_inbound_port }}
-          ════════════════════════════════════════════
+        msg:
+          - "══════════════════════════════════════════"
+          - "MARZBAN NODE READY — {{ inventory_hostname }}"
+          - "══════════════════════════════════════════"
+          - "Node address  : {{ ansible_host }}"
+          - "Service port  : {{ service_port }}"
+          - "Xray API port : {{ xray_api_port }}"
+          - "Inbound port  : {{ extra_inbound_port }}"
+          - "══════════════════════════════════════════"
+          - "xray x25519 Private key : {{ xray_keypair.stdout_lines[0] | regex_replace('^Private key: ', '') }}"
+          - "xray x25519 Public key  : {{ xray_keypair.stdout_lines[1] | regex_replace('^Public key: ', '') }}"
+          - "shortId                 : {{ xray_short_id.stdout }}"
+          - "══════════════════════════════════════════"
