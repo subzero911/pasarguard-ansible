@@ -1,0 +1,4 @@
+panel_client_cert: |
+  -----BEGIN CERTIFICATE-----
+  ВСТАВЬТЕ СЮДА СЕРТИФИКАТ ДЛЯ НОДЫ ИЗ ПАНЕЛИ
+  -----END CERTIFICATE-----
