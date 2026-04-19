@@ -1,0 +1,125 @@
+---
+- name: Setup Marzban Node
+  hosts: marzban_nodes
+  become: true
+  vars:
+    marzban_node_dir: "/opt/marzban-node"
+    marzban_data_dir: "/var/lib/marzban-node"
+    service_port: 62050
+    xray_api_port: 62051
+    extra_inbound_port: 10443
+
+  tasks:
+
+    # ─── System ───────────────────────────────────────────────────────────────
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install base packages
+      apt:
+        name:
+          - curl
+          - socat
+          - git
+        state: present
+
+    # ─── Docker ───────────────────────────────────────────────────────────────
+
+    - name: Install Docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # ─── Marzban Node ─────────────────────────────────────────────────────────
+
+    - name: Create Marzban Node directory
+      file:
+        path: "{{ marzban_node_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create Marzban data directory
+      file:
+        path: "{{ marzban_data_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ marzban_node_dir }}/docker-compose.yml"
+        content: |
+          services:
+            marzban-node:
+              image: gozargah/marzban-node:latest
+              restart: always
+              network_mode: host
+              environment:
+                SSL_CERT_FILE: "{{ marzban_data_dir }}/ssl_cert.pem"
+                SSL_KEY_FILE: "{{ marzban_data_dir }}/ssl_key.pem"
+                SSL_CLIENT_CERT_FILE: "{{ marzban_data_dir }}/ssl_client_cert.pem"
+                SERVICE_PORT: "{{ service_port }}"
+                XRAY_API_PORT: "{{ xray_api_port }}"
+                SERVICE_PROTOCOL: "rest"
+              volumes:
+                - {{ marzban_data_dir }}:{{ marzban_data_dir }}
+
+    - name: Start Marzban Node
+      shell: docker compose up -d
+      args:
+        chdir: "{{ marzban_node_dir }}"
+
+    - name: Wait for SSL certs to be generated
+      wait_for:
+        path: "{{ marzban_data_dir }}/ssl_client_cert.pem"
+        timeout: 30
+
+    # ─── Generate xray keys ───────────────────────────────────────────────────
+
+    - name: Generate xray x25519 keypair
+      shell: docker compose exec -T marzban-node xray x25519
+      args:
+        chdir: "{{ marzban_node_dir }}"
+      register: xray_keypair
+      changed_when: false
+
+    - name: Generate shortId
+      command: openssl rand -hex 8
+      register: xray_short_id
+      changed_when: false
+
+    # ─── Output ───────────────────────────────────────────────────────────────
+
+    - name: Read client certificate
+      slurp:
+        src: "{{ marzban_data_dir }}/ssl_client_cert.pem"
+      register: client_cert
+
+    - name: Print setup summary
+      debug:
+        msg: |
+          ════════════════════════════════════════════
+           MARZBAN NODE READY — {{ inventory_hostname }}
+          ════════════════════════════════════════════
+
+          📋 Client Certificate (Settings → Nodes → Client Certificate):
+          {{ client_cert.content | b64decode }}
+
+          🔑 xray x25519 keypair (для Reality inbound):
+          {{ xray_keypair.stdout }}
+
+          🔑 shortId:
+          {{ xray_short_id.stdout }}
+
+          🌐 Node address : {{ ansible_host }}
+          🔌 Service port : {{ service_port }}
+          🔌 Xray API port: {{ xray_api_port }}
+          🔌 Inbound port : {{ extra_inbound_port }}
+          ════════════════════════════════════════════
