@@ -81,10 +81,11 @@
       args:
         creates: "{{ marzban_data_dir }}/ssl_key.pem"
 
-    - name: Copy cert as client cert
-      shell: cp {{ marzban_data_dir }}/ssl_cert.pem {{ marzban_data_dir }}/ssl_client_cert.pem
-      args:
-        creates: "{{ marzban_data_dir }}/ssl_client_cert.pem"
+    - name: Write panel client certificate to node
+      copy:
+        dest: "{{ marzban_data_dir }}/ssl_client_cert.pem"
+        content: "{{ panel_client_cert }}"
+        mode: "0600"
 
     # ─── Start Marzban Node ──────────────────────────────
 
