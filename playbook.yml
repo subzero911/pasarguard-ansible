@@ -93,6 +93,18 @@
       args:
         chdir: "{{ marzban_node_dir }}"
 
+    # ─── Wait for container to be running ────────────────────────────────────
+
+    - name: Wait for marzban-node container to be running
+      shell: docker compose ps --format json marzban-node
+      args:
+        chdir: "{{ marzban_node_dir }}"
+      register: container_status
+      until: "'running' in container_status.stdout"
+      retries: 30
+      delay: 5
+      changed_when: false
+
     # ─── Generate xray keys ───────────────────────────────────────────────────
 
     - name: Generate xray x25519 keypair
