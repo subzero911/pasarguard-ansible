@@ -7,4 +7,4 @@ panel_client_cert: |
 netdata_parent_url: "MAIN_SERVER_IP:19999"
 
 # API-ключ для стриминга метрик (должен совпадать с stream.conf на Parent)
-netdata_streaming_api_key: "79eebfbcbfcc428c5f153a5690f2df23"
+netdata_streaming_api_key: "your-key-here"
