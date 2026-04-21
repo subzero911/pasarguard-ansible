@@ -8,6 +8,8 @@
     service_port: 62050
     xray_api_port: 62051
     extra_inbound_port: 10443
+    netdata_parent_url: "{{ netdata_parent_url }}"
+    netdata_streaming_api_key: "{{ netdata_streaming_api_key }}"
 
   tasks:
 
@@ -70,6 +72,11 @@
                 SERVICE_PROTOCOL: "rest"
               volumes:
                 - {{ marzban_data_dir }}:{{ marzban_data_dir }}
+              logging:
+                driver: "json-file"
+                options:
+                  max-size: "10m"
+                  max-file: "5"
 
     # ─── Generate SSL certs before starting node ──────────────────────────────
 
@@ -125,6 +132,67 @@
       command: openssl rand -hex 8
       register: xray_short_id
       changed_when: false
+
+    # ─── Netdata Agent ────────────────────────────────────────────────────────
+
+    - name: Create Netdata Agent config directory
+      file:
+        path: /etc/netdata
+        state: directory
+        mode: "0755"
+
+    - name: Write Netdata stream.conf
+      copy:
+        dest: /etc/netdata/stream.conf
+        content: |
+          [stream]
+              enabled = yes
+              destination = {{ netdata_parent_url }}
+              api key = {{ netdata_streaming_api_key }}
+        mode: "0644"
+
+    - name: Run Netdata Agent container
+      docker_container:
+        name: netdata-agent
+        image: netdata/netdata:latest
+        restart_policy: always
+        hostname: "{{ inventory_hostname }}"
+        capabilities:
+          - SYS_PTRACE
+          - SYS_ADMIN
+        security_opts:
+          - apparmor:unconfined
+        volumes:
+          - /etc/netdata:/etc/netdata:ro
+          - netdatalib:/var/lib/netdata
+          - netdatacache:/var/cache/netdata
+          - /etc/passwd:/host/etc/passwd:ro
+          - /etc/group:/host/etc/group:ro
+          - /proc:/host/proc:ro
+          - /sys:/host/sys:ro
+          - /etc/os-release:/host/etc/os-release:ro
+        log_driver: json-file
+        log_options:
+          max-size: "10m"
+          max-file: "5"
+
+    # ─── Dozzle Agent ─────────────────────────────────────────────────────────
+
+    - name: Run Dozzle Agent container
+      docker_container:
+        name: dozzle-agent
+        image: amir20/dozzle:latest
+        restart_policy: always
+        command: agent
+        hostname: "{{ inventory_hostname }}"
+        ports:
+          - "7007:7007"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        log_driver: json-file
+        log_options:
+          max-size: "10m"
+          max-file: "5"
 
     # ─── Output ───────────────────────────────────────────────────────────────
 

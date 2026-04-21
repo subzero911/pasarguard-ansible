@@ -2,3 +2,9 @@ panel_client_cert: |
   -----BEGIN CERTIFICATE-----
   ВСТАВЬТЕ СЮДА СЕРТИФИКАТ ДЛЯ НОДЫ ИЗ ПАНЕЛИ
   -----END CERTIFICATE-----
+
+# Адрес Netdata Parent (IP или hostname главного сервера, порт 19999)
+netdata_parent_url: "MAIN_SERVER_IP:19999"
+
+# API-ключ для стриминга метрик (должен совпадать с stream.conf на Parent)
+netdata_streaming_api_key: "79eebfbcbfcc428c5f153a5690f2df23"
