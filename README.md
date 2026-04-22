@@ -2,9 +2,13 @@
 
 Ansible playbook для автоматического развертывания Marzban Node на серверах.
 
-## Установка сертификата
+## Конфигурация
 
-Сертификат клиента панели нужно вставить в файл `group_vars/marzban_nodes.yml` в переменную `panel_client_cert`.
+Перечислите свои ноды в файле `inventory.ini`.
+
+## Установка сертификатов
+
+Сертификаты клиента панели нужно вставить в файлы `host_vars/{имя_ноды}.yml`, в переменную `panel_client_cert`.
 
 Пример:
 ```yaml
@@ -14,8 +18,6 @@ panel_client_cert: |
   ...
   -----END CERTIFICATE-----
 ```
-
-Скопируйте файл `group_vars/marzban_nodes.yml.example` и заполните его своими данными.
 
 ## Запуск Ansible
 
@@ -38,6 +40,4 @@ ansible-playbook -i inventory.ini playbook.yml -v
 - Устанавливает клиентский сертификат панели
 - Запускает Marzban Node контейнер
 - Генерирует xray ключи и shortId
-
-## TODO
-- Добавлять агенты Dozzle и Netdata
+- Добавляет агент Dozzle

@@ -1,1 +1,1 @@
-group_vars/marzban_nodes.yml
+host_vars/*
