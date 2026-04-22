@@ -133,6 +133,11 @@
 
     # ─── Dozzle Agent ─────────────────────────────────────────────────────────
 
+    - name: Install Python requests library for docker_container module
+      apt:
+        name: python3-requests
+        state: present
+
     - name: Run Dozzle Agent container
       docker_container:
         name: dozzle-agent
