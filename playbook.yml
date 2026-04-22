@@ -8,6 +8,7 @@
     service_port: 62050
     xray_api_port: 62051
     extra_inbound_port: 10443
+    xray_version: "26.4.17"
 
   tasks:
 
@@ -68,6 +69,7 @@
                 SERVICE_PORT: "{{ service_port }}"
                 XRAY_API_PORT: "{{ xray_api_port }}"
                 SERVICE_PROTOCOL: "rest"
+                XRAY_VERSION: "{{ xray_version }}"
               volumes:
                 - {{ marzban_data_dir }}:{{ marzban_data_dir }}
               logging:
