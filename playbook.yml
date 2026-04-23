@@ -8,7 +8,6 @@
     service_port: 62050
     xray_api_port: 62051
     extra_inbound_port: 10443
-    xray_version: "26.4.17"
 
   tasks:
 
@@ -53,51 +52,40 @@
         state: directory
         mode: "0755"
 
+    - name: Write panel client certificate to node
+      copy:
+        dest: "{{ marzban_data_dir }}/cert.pem"
+        content: "{{ panel_client_cert }}"
+        mode: "0644"
+
     - name: Write docker-compose.yml
       copy:
         dest: "{{ marzban_node_dir }}/docker-compose.yml"
         content: |
           services:
             marzban-node:
+              container_name: marzban-node
               image: gozargah/marzban-node:latest
               restart: always
               network_mode: host
               environment:
-                SSL_CERT_FILE: "{{ marzban_data_dir }}/ssl_cert.pem"
-                SSL_KEY_FILE: "{{ marzban_data_dir }}/ssl_key.pem"
-                SSL_CLIENT_CERT_FILE: "{{ marzban_data_dir }}/ssl_client_cert.pem"
+                SSL_CLIENT_CERT_FILE: "/var/lib/marzban-node/cert.pem"
                 SERVICE_PORT: "{{ service_port }}"
                 XRAY_API_PORT: "{{ xray_api_port }}"
                 SERVICE_PROTOCOL: "rest"
-                XRAY_VERSION: "{{ xray_version }}"
               volumes:
-                - {{ marzban_data_dir }}:{{ marzban_data_dir }}
+                - /var/lib/marzban:/var/lib/marzban
+                - /var/lib/marzban-node:/var/lib/marzban-node
               logging:
                 driver: "json-file"
                 options:
                   max-size: "10m"
                   max-file: "5"
 
-    # ─── Generate SSL certs before starting node ──────────────────────────────
-
-    - name: Generate SSL private key
-      shell: |
-        openssl req -x509 -newkey rsa:4096 -keyout {{ marzban_data_dir }}/ssl_key.pem \
-          -out {{ marzban_data_dir }}/ssl_cert.pem \
-          -days 3650 -nodes -subj "/CN=marzban-node"
-      args:
-        creates: "{{ marzban_data_dir }}/ssl_key.pem"
-
-    - name: Write panel client certificate to node
-      copy:
-        dest: "{{ marzban_data_dir }}/ssl_client_cert.pem"
-        content: "{{ panel_client_cert }}"
-        mode: "0644"
-
     # ─── Start Marzban Node ──────────────────────────────
 
     - name: Stop and remove containers
-      shell: docker compose down
+      shell: docker compose down --remove-orphans
       args:
         chdir: "{{ marzban_node_dir }}"
       ignore_errors: true
