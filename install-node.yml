@@ -9,6 +9,7 @@
     xray_api_port: 62051
     extra_inbound_port: 10443
     xray_version: "26.4.17"
+    xray_dir: "/var/lib/marzban/xray-core"
 
   tasks:
 
@@ -53,6 +54,38 @@
         state: directory
         mode: "0755"
 
+    # ─── Xray binary ──────────────────────────────────────────────────────────
+
+    - name: Create Xray directory
+      file:
+        path: "{{ xray_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Install unzip
+      apt:
+        name: unzip
+        state: present
+
+    - name: Download Xray {{ xray_version }}
+      get_url:
+        url: "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-64.zip"
+        dest: "/tmp/xray-linux-64.zip"
+        force: yes
+
+    - name: Unzip Xray
+      unarchive:
+        src: "/tmp/xray-linux-64.zip"
+        dest: "{{ xray_dir }}"
+        remote_src: yes
+
+    - name: Set Xray executable permissions
+      file:
+        path: "{{ xray_dir }}/xray"
+        mode: "0755"
+
+    # ─── Marzban Node certs ───────────────────────────────────────────────────
+
     - name: Write panel client certificate to node
       copy:
         dest: "{{ marzban_data_dir }}/cert.pem"
@@ -74,7 +107,7 @@
                 SERVICE_PORT: "{{ service_port }}"
                 XRAY_API_PORT: "{{ xray_api_port }}"
                 SERVICE_PROTOCOL: "rest"
-                XRAY_VERSION: "{{ xray_version }}"
+                XRAY_EXECUTABLE_PATH: "{{ xray_dir }}/xray"
               volumes:
                 - /var/lib/marzban:/var/lib/marzban
                 - /var/lib/marzban-node:/var/lib/marzban-node
