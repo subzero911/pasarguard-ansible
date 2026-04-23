@@ -43,16 +43,22 @@
     - name: Add XRAY_EXECUTABLE_PATH to docker-compose.yml
       lineinfile:
         path: "{{ marzban_node_dir }}/docker-compose.yml"
-        line: '                XRAY_EXECUTABLE_PATH: "{{ xray_dir }}/xray"'
+        line: '      XRAY_EXECUTABLE_PATH: "{{ xray_dir }}/xray"'
         insertafter: 'SERVICE_PROTOCOL'
         regexp: 'XRAY_EXECUTABLE_PATH'
+
+    - name: Remove incorrect volume mapping if present
+      lineinfile:
+        path: "{{ marzban_node_dir }}/docker-compose.yml"
+        regexp: '^\s*-\s*/var/lib/marzban-node:/var/lib/marzban\s*$'
+        state: absent
 
     - name: Add /var/lib/marzban volume to docker-compose.yml
       lineinfile:
         path: "{{ marzban_node_dir }}/docker-compose.yml"
-        line: '                - /var/lib/marzban:/var/lib/marzban'
+        line: '      - /var/lib/marzban:/var/lib/marzban'
         insertafter: 'volumes:'
-        regexp: '/var/lib/marzban:/var/lib/marzban'
+        regexp: '^\s*-\s*/var/lib/marzban:/var/lib/marzban\s*$'
 
     - name: Restart marzban-node container
       shell: docker compose down --remove-orphans && docker compose up -d
