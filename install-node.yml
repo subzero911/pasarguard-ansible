@@ -8,7 +8,7 @@
     service_port: 62050
     xray_api_port: 62051
     extra_inbound_port: 10443
-    xray_version: "26.4.17"
+    xray_version: "26.3.27"
     xray_dir: "/var/lib/marzban/xray-core"
 
   tasks:
