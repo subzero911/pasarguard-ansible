@@ -1,0 +1,136 @@
+#!/bin/bash
+# Скрипт восстановления Marzban из бэкапа Google Drive
+set -euo pipefail
+
+RCLONE_REMOTE="{{ rclone_gdrive_remote }}"
+STACK_DIR="{{ marzban_stack_dir }}"
+MARZBAN_DATA="{{ marzban_data_dir }}"
+TEMP_DIR="/tmp/restore-marzban-$$"
+LOG_FILE="/var/log/restore-marzban.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
+}
+
+error_exit() {
+    log "ОШИБКА: $*"
+    exit 1
+}
+
+# ─── Показать список бэкапов ──────────────────────────────────────────────────
+
+log "=== Получение списка бэкапов из Google Drive ==="
+rclone ls "${RCLONE_REMOTE}/" || error_exit "Не удалось получить список бэкапов"
+
+echo ""
+echo "Доступные бэкапы:"
+rclone ls "${RCLONE_REMOTE}/" | awk '{print $2}' | sort -r
+echo ""
+
+# ─── Запросить имя файла ───────────────────────────────────────────────────────
+
+if [[ $# -eq 0 ]]; then
+    read -p "Введите имя файла бэкапа (например, marzban_backup_20240424_030000.tar.gz): " BACKUP_FILE
+else
+    BACKUP_FILE="$1"
+fi
+
+if [[ -z "${BACKUP_FILE}" ]]; then
+    error_exit "Имя файла не указано"
+fi
+
+# ─── Скачать бэкап ───────────────────────────────────────────────────────────
+
+log "Скачивание ${BACKUP_FILE}..."
+mkdir -p "${TEMP_DIR}"
+rclone copy "${RCLONE_REMOTE}/${BACKUP_FILE}" "${TEMP_DIR}/" || error_exit "Не удалось скачать бэкап"
+
+ARCHIVE_PATH="${TEMP_DIR}/${BACKUP_FILE}"
+
+if [[ ! -f "${ARCHIVE_PATH}" ]]; then
+    error_exit "Архив не найден после скачивания"
+fi
+
+ARCHIVE_SIZE=$(du -sh "${ARCHIVE_PATH}" | cut -f1)
+log "Размер архива: ${ARCHIVE_SIZE}"
+
+# ─── Распаковка ───────────────────────────────────────────────────────────────
+
+log "Распаковка архива..."
+tar -xzf "${ARCHIVE_PATH}" -C "${TEMP_DIR}"
+
+BACKUP_CONTENT_DIR=$(find "${TEMP_DIR}" -maxdepth 1 -type d -name "marzban_backup_*" | head -1)
+
+if [[ -z "${BACKUP_CONTENT_DIR}" ]]; then
+    error_exit "Не найдена директория с бэкапом в архиве"
+fi
+
+log "Содержимое бэкапа:"
+ls -la "${BACKUP_CONTENT_DIR}"
+
+# ─── Предупреждение ─────────────────────────────────────────────────────────
+
+echo ""
+echo "══════════════════════════════════════════════════════════════"
+echo "ВНИМАНИЕ: Процедура восстановления:"
+echo "  1. Будет остановлен docker-compose стек"
+echo "  2. Данные будут восстановлены из бэкапа"
+echo "  3. Стек будет запущен заново"
+echo "══════════════════════════════════════════════════════════════"
+echo ""
+read -p "Продолжить? (yes/no): " CONFIRM
+
+if [[ "${CONFIRM}" != "yes" ]]; then
+    log "Отмена восстановления пользователем"
+    rm -rf "${TEMP_DIR}"
+    exit 0
+fi
+
+# ─── Остановка docker-compose ─────────────────────────────────────────────────
+
+log "Остановка docker-compose стека..."
+cd "${STACK_DIR}"
+docker compose down || error_exit "Не удалось остановить docker-compose"
+
+# ─── Восстановление базы данных ───────────────────────────────────────────────
+
+log "Восстановление базы данных..."
+if [[ -f "${BACKUP_CONTENT_DIR}/db.sqlite3" ]]; then
+    cp "${BACKUP_CONTENT_DIR}/db.sqlite3" "${MARZBAN_DATA}/db.sqlite3"
+    log "База данных восстановлена"
+else
+    error_exit "База данных не найдена в архиве"
+fi
+
+# ─── Восстановление данных Marzban ────────────────────────────────────────────
+
+log "Восстановление данных Marzban..."
+if [[ -d "${BACKUP_CONTENT_DIR}/marzban-data" ]]; then
+    rsync -a "${BACKUP_CONTENT_DIR}/marzban-data/" "${MARZBAN_DATA}/"
+    log "Данные Marzban восстановлены"
+else
+    log "Директория marzban-data не найдена, пропускаем"
+fi
+
+# ─── Восстановление конфигурации стека ────────────────────────────────────────
+
+log "Восстановление конфигурации стека..."
+if [[ -d "${BACKUP_CONTENT_DIR}/marzban-stack" ]]; then
+    rsync -a "${BACKUP_CONTENT_DIR}/marzban-stack/" "${STACK_DIR}/"
+    log "Конфигурация стека восстановлена"
+else
+    log "Директория marzban-stack не найдена, пропускаем"
+fi
+
+# ─── Запуск docker-compose ───────────────────────────────────────────────────
+
+log "Запуск docker-compose стека..."
+cd "${STACK_DIR}"
+docker compose up -d || error_exit "Не удалось запустить docker-compose"
+
+# ─── Очистка ────────────────────────────────────────────────────────────────
+
+rm -rf "${TEMP_DIR}"
+
+log "=== Восстановление завершено успешно ==="
+log "Проверьте статус контейнеров: cd ${STACK_DIR} && docker compose ps"

@@ -1,0 +1,111 @@
+---
+- name: Настройка бэкапа Marzban на Google Drive
+  hosts: marzban_main
+  become: true
+
+  vars:
+    marzban_stack_dir: /opt/marzban-stack
+    marzban_data_dir: /var/lib/marzban
+    backup_script_path: /usr/local/bin/backup-marzban.sh
+    rclone_gdrive_remote: "gdrive:marzban-backups"  # имя remote:папка в Google Drive
+    backup_keep_days: 7                              # сколько дней хранить бэкапы
+    backup_cron_hour: "0"                            # час запуска (UTC) = 03:00 по UTC+3
+    backup_cron_minute: "0"
+
+  tasks:
+
+    # ─── Зависимости ──────────────────────────────────────────────────────────
+
+    - name: Установить зависимости (sqlite3, rsync)
+      apt:
+        name:
+          - sqlite3
+          - rsync
+          - curl
+          - unzip
+        state: present
+        update_cache: yes
+
+    # ─── rclone ───────────────────────────────────────────────────────────────
+
+    - name: Установить rclone
+      shell: curl https://rclone.org/install.sh | sudo bash
+      args:
+        creates: /usr/bin/rclone
+
+    - name: Проверить версию rclone
+      command: rclone version
+      register: rclone_version_out
+      changed_when: false
+
+    - name: Показать версию rclone
+      debug:
+        msg: "{{ rclone_version_out.stdout_lines[0] }}"
+
+    # ─── Скрипт бэкапа ────────────────────────────────────────────────────────
+
+    - name: Развернуть скрипт бэкапа
+      template:
+        src: templates/backup-marzban.sh.j2
+        dest: "{{ backup_script_path }}"
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Развернуть скрипт восстановления
+      template:
+        src: templates/restore-marzban.sh.j2
+        dest: /usr/local/bin/restore-marzban.sh
+        mode: "0755"
+        owner: root
+        group: root
+
+    # ─── Cron ─────────────────────────────────────────────────────────────────
+
+    - name: Настроить cron для ежедневного бэкапа
+      cron:
+        name: "Marzban backup to Google Drive"
+        hour: "{{ backup_cron_hour }}"
+        minute: "{{ backup_cron_minute }}"
+        job: "{{ backup_script_path }} >> /var/log/backup-marzban.log 2>&1"
+        state: present
+
+    # ─── Инструкции ───────────────────────────────────────────────────────────
+
+    - name: Инструкции по настройке rclone с Google Drive
+      debug:
+        msg:
+          - "══════════════════════════════════════════════════════════════"
+          - "БЭКАП УСТАНОВЛЕН. НЕОБХОДИМА РУЧНАЯ НАСТРОЙКА RCLONE:"
+          - "══════════════════════════════════════════════════════════════"
+          - ""
+          - "ВАРИАНТ А: Настройка через браузер на локальной машине"
+          - "  1. Установите rclone локально: brew install rclone"
+          - "  2. Запустите: rclone authorize 'drive'"
+          - "  3. Авторизуйтесь в браузере"
+          - "  4. Скопируйте полученный токен"
+          - "  5. На сервере: rclone config"
+          - "     → n (new remote) → имя: gdrive → тип: 17 (drive)"
+          - "     → вставьте токен при запросе"
+          - ""
+          - "ВАРИАНТ Б: SSH port forwarding (если нет локального rclone)"
+          - "  1. ssh -L 53682:localhost:53682 root@{{ ansible_host }}"
+          - "  2. На сервере: rclone config"
+          - "     → n → gdrive → drive → при вопросе об авторизации"
+          - "       выберите 'y' (use web browser on this machine)"
+          - "  3. Откройте URL в браузере на локальной машине"
+          - ""
+          - "ПОСЛЕ НАСТРОЙКИ:"
+          - "  Проверьте подключение: rclone lsd gdrive:"
+          - "  Тест бэкапа:           {{ backup_script_path }}"
+          - "  Логи бэкапа:           tail -f /var/log/backup-marzban.log"
+          - ""
+          - "ВОССТАНОВЛЕНИЕ ИЗ БЭКАПА:"
+          - "  Посмотреть бэкапы:      rclone ls gdrive:marzban-backups/"
+          - "  Восстановить:          /usr/local/bin/restore-marzban.sh"
+          - "  Логи восстановления:    tail -f /var/log/restore-marzban.log"
+          - ""
+          - "Бэкап запускается ежедневно в {{ backup_cron_hour }}:00 UTC"
+          - "Хранятся бэкапы за последние {{ backup_keep_days }} дней"
+          - "Папка на Google Drive: {{ rclone_gdrive_remote }}"
+          - "══════════════════════════════════════════════════════════════"
