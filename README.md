@@ -100,6 +100,25 @@ tail -f /var/log/backup-marzban.log
 
 ### Восстановление из бэкапа
 
+**Требования для восстановления:**
+
+Если устанавливали бэкап через `install-backup.yml` — всё уже готово.
+
+Если восстановление на новом сервере, нужно:
+- Docker и docker-compose
+- rclone с настроенным Google Drive (инструкции выше)
+- sqlite3, rsync (устанавливаются playbook)
+
+**Что восстанавливается из бэкапа:**
+- `/var/lib/marzban/db.sqlite3` — база данных
+- `/var/lib/marzban/` — данные Marzban (xray-конфиги, сертификаты)
+- `/opt/marzban-stack/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
+
+**Что НЕ восстанавливается (нужно установить отдельно):**
+- Docker и docker-compose
+- rclone (если не было до бэкапа)
+- Структура директорий (`/var/lib/marzban`, `/opt/marzban-stack`)
+
 **Посмотреть список бэкапов:**
 ```bash
 rclone ls gdrive:marzban-backups/
@@ -127,30 +146,69 @@ tail -f /var/log/restore-marzban.log
 
 ### Настройка rclone с Google Drive
 
-После запуска playbook необходимо настроить rclone. Два варианта:
+После запуска playbook необходимо настроить rclone. Рекомендуемый вариант — SSH port forwarding.
 
 **Вариант А: SSH port forwarding (рекомендуется)**
+
+Шаг 1: На локальной машине запустите SSH с пробросом порта:
 ```bash
 ssh -L 53682:localhost:53682 root@<IP_ПАНЕЛИ>
-# На сервере:
-rclone config
-# → n → gdrive → drive → при авторизации выбрать 'y'
-# Откройте URL в браузере на локальной машине
 ```
 
-**Вариант Б: Через локальный rclone**
+Шаг 2: На сервере запустите rclone config:
 ```bash
-# На локальной машине:
+rclone config
+```
+
+Шаг 3: Ответьте на вопросы:
+- `No remotes found - make a new one?` → введите `n` (new)
+- `name>` → введите `gdrive`
+- `Type of storage>` → введите `drive` или выберите номер `17`
+- `scope>` → нажмите Enter (по умолчанию)
+- `root_folder_id>` → нажмите Enter
+- `service_account_file>` → нажмите Enter
+- `Use auto config?` → введите `y` (yes)
+- **Откроется URL в браузере на вашей локальной машине** — авторизуйтесь в Google
+- `Configure this as a team drive?` → введите `n` (no)
+- `Use this remote?` → введите `y` (yes)
+- `y/n>` → введите `q` (quit)
+
+Шаг 4: Проверьте подключение:
+```bash
+rclone lsd gdrive:
+```
+
+---
+
+**Вариант Б: Через токен (если нет возможности открыть браузер с сервера)**
+
+Шаг 1: На локальной машине установите rclone и получите токен:
+```bash
 brew install rclone
 rclone authorize 'drive'
-# Авторизуйтесь в браузере и скопируйте токен
+```
+- Откроется браузер — авторизуйтесь в Google
+- Скопируйте полученный токен (длинная строка)
 
-# На сервере:
+Шаг 2: На сервере запустите rclone config:
+```bash
 rclone config
-# → n → gdrive → drive → вставьте токен при запросе
 ```
 
-После настройки проверьте подключение:
+Шаг 3: Ответьте на вопросы:
+- `No remotes found - make a new one?` → введите `n` (new)
+- `name>` → введите `gdrive`
+- `Type of storage>` → введите `drive` или выберите номер `17`
+- `scope>` → нажмите Enter
+- `root_folder_id>` → нажмите Enter
+- `service_account_file>` → нажмите Enter
+- `Use auto config?` → введите `n` (no)
+- **`Enter a value>` → вставьте скопированный токен**
+- `Configure this as a team drive?` → введите `n` (no)
+- `Use this remote?` → введите `y` (yes)
+- `y/n>` → введите `q` (quit)
+
+Шаг 4: Проверьте подключение:
 ```bash
 rclone lsd gdrive:
 ```
