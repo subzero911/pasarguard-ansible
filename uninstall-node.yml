@@ -1,0 +1,44 @@
+---
+- name: Uninstall Marzban Node
+  hosts: pasarguard_nodes
+  become: true
+  vars:
+    marzban_node_dir: "/opt/marzban-node"
+    marzban_data_dir: "/var/lib/marzban-node"
+    xray_dir: "/var/lib/marzban/xray-core"
+
+  tasks:
+
+    - name: Stop and remove Marzban Node containers
+      shell: docker compose down --remove-orphans
+      args:
+        chdir: "{{ marzban_node_dir }}"
+      ignore_errors: true
+
+    - name: Remove Dozzle Agent container
+      docker_container:
+        name: dozzle-agent
+        state: absent
+      ignore_errors: true
+
+    - name: Remove Marzban Node directory
+      file:
+        path: "{{ marzban_node_dir }}"
+        state: absent
+
+    - name: Remove Marzban data directory
+      file:
+        path: "{{ marzban_data_dir }}"
+        state: absent
+
+    - name: Remove Xray directory
+      file:
+        path: "{{ xray_dir }}"
+        state: absent
+
+    - name: Print uninstall summary
+      debug:
+        msg:
+          - "══════════════════════════════════════════"
+          - "MARZBAN NODE REMOVED — {{ inventory_hostname }}"
+          - "══════════════════════════════════════════"
