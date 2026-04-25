@@ -60,6 +60,16 @@
         owner: root
         group: root
 
+    # ─── Logrotate ─────────────────────────────────────────────────────────────
+
+    - name: Настроить logrotate для логов бэкапа и восстановления
+      template:
+        src: templates/marzban-backup-logrotate.conf.j2
+        dest: /etc/logrotate.d/marzban-backup
+        mode: "0644"
+        owner: root
+        group: root
+
     # ─── Cron ─────────────────────────────────────────────────────────────────
 
     - name: Настроить cron для ежедневного бэкапа
