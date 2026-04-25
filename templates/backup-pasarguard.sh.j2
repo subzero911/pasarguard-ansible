@@ -1,15 +1,15 @@
 #!/bin/bash
-# Скрипт бэкапа Marzban → Google Drive (через rclone)
+# Скрипт бэкапа PasarGuard → Google Drive (через rclone)
 set -euo pipefail
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_NAME="marzban_backup_${TIMESTAMP}"
+BACKUP_NAME="pasarguard_backup_${TIMESTAMP}"
 TEMP_DIR="/tmp/${BACKUP_NAME}"
 RCLONE_REMOTE="{{ rclone_gdrive_remote }}"
 KEEP_DAYS="{{ backup_keep_days }}"
-STACK_DIR="{{ marzban_stack_dir }}"
-MARZBAN_DATA="{{ marzban_data_dir }}"
-LOG_FILE="/var/log/backup-marzban.log"
+STACK_DIR="{{ pasarguard_stack_dir }}"
+PASARGUARD_DATA="{{ pasarguard_data_dir }}"
+LOG_FILE="/var/log/backup-pasarguard.log"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
@@ -18,20 +18,24 @@ log() {
 log "=== Начало бэкапа ==="
 
 # Создаём временную директорию
-mkdir -p "${TEMP_DIR}/marzban-data"
-mkdir -p "${TEMP_DIR}/marzban-stack"
+mkdir -p "${TEMP_DIR}/pasarguard-data"
+mkdir -p "${TEMP_DIR}/pasarguard-stack"
 
 # Бэкап SQLite базы данных (безопасный online-snapshot, работает без остановки контейнера)
 log "Бэкап базы данных..."
-sqlite3 "${MARZBAN_DATA}/db.sqlite3" ".backup '${TEMP_DIR}/db.sqlite3'"
+if [[ -f "${PASARGUARD_DATA}/db.sqlite3" ]]; then
+    sqlite3 "${PASARGUARD_DATA}/db.sqlite3" ".backup '${TEMP_DIR}/db.sqlite3'"
+else
+    log "База данных SQLite не найдена, пропускаем"
+fi
 
-# Бэкап остальных данных Marzban (xray-конфиги, сертификаты и т.д.)
-log "Бэкап данных Marzban..."
-rsync -a --exclude='db.sqlite3' "${MARZBAN_DATA}/" "${TEMP_DIR}/marzban-data/"
+# Бэкап остальных данных PasarGuard (xray-конфиги, сертификаты и т.д.)
+log "Бэкап данных PasarGuard..."
+rsync -a --exclude='db.sqlite3' "${PASARGUARD_DATA}/" "${TEMP_DIR}/pasarguard-data/"
 
 # Бэкап конфигурации стека (docker-compose, .env, Caddyfile)
 log "Бэкап конфигурации стека..."
-rsync -a --exclude='.git' "${STACK_DIR}/" "${TEMP_DIR}/marzban-stack/"
+rsync -a --exclude='.git' "${STACK_DIR}/" "${TEMP_DIR}/pasarguard-stack/"
 
 # Упаковываем всё в архив
 log "Архивирование..."

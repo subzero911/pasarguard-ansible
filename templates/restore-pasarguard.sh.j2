@@ -1,12 +1,12 @@
 #!/bin/bash
-# Скрипт восстановления Marzban из бэкапа Google Drive
+# Скрипт восстановления PasarGuard из бэкапа Google Drive
 set -euo pipefail
 
 RCLONE_REMOTE="{{ rclone_gdrive_remote }}"
-STACK_DIR="{{ marzban_stack_dir }}"
-MARZBAN_DATA="{{ marzban_data_dir }}"
-TEMP_DIR="/tmp/restore-marzban-$$"
-LOG_FILE="/var/log/restore-marzban.log"
+STACK_DIR="{{ pasarguard_stack_dir }}"
+PASARGUARD_DATA="{{ pasarguard_data_dir }}"
+TEMP_DIR="/tmp/restore-pasarguard-$$"
+LOG_FILE="/var/log/restore-pasarguard.log"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
@@ -30,7 +30,7 @@ echo ""
 # ─── Запросить имя файла ───────────────────────────────────────────────────────
 
 if [[ $# -eq 0 ]]; then
-    read -p "Введите имя файла бэкапа (например, marzban_backup_20240424_030000.tar.gz): " BACKUP_FILE
+    read -p "Введите имя файла бэкапа (например, pasarguard_backup_20240424_030000.tar.gz): " BACKUP_FILE
 else
     BACKUP_FILE="$1"
 fi
@@ -59,7 +59,7 @@ log "Размер архива: ${ARCHIVE_SIZE}"
 log "Распаковка архива..."
 tar -xzf "${ARCHIVE_PATH}" -C "${TEMP_DIR}"
 
-BACKUP_CONTENT_DIR=$(find "${TEMP_DIR}" -maxdepth 1 -type d -name "marzban_backup_*" | head -1)
+BACKUP_CONTENT_DIR=$(find "${TEMP_DIR}" -maxdepth 1 -type d -name "pasarguard_backup_*" | head -1)
 
 if [[ -z "${BACKUP_CONTENT_DIR}" ]]; then
     error_exit "Не найдена директория с бэкапом в архиве"
@@ -89,9 +89,9 @@ fi
 # ─── Создание структуры директорий ─────────────────────────────────────────────
 
 log "Создание структуры директорий..."
-mkdir -p "${MARZBAN_DATA}"
+mkdir -p "${PASARGUARD_DATA}"
 mkdir -p "${STACK_DIR}"
-log "Директории созданы: ${MARZBAN_DATA}, ${STACK_DIR}"
+log "Директории созданы: ${PASARGUARD_DATA}, ${STACK_DIR}"
 
 # ─── Остановка docker-compose ─────────────────────────────────────────────────
 
@@ -103,30 +103,30 @@ docker compose down || error_exit "Не удалось остановить dock
 
 log "Восстановление базы данных..."
 if [[ -f "${BACKUP_CONTENT_DIR}/db.sqlite3" ]]; then
-    cp "${BACKUP_CONTENT_DIR}/db.sqlite3" "${MARZBAN_DATA}/db.sqlite3"
+    cp "${BACKUP_CONTENT_DIR}/db.sqlite3" "${PASARGUARD_DATA}/db.sqlite3"
     log "База данных восстановлена"
 else
-    error_exit "База данных не найдена в архиве"
+    log "База данных не найдена в архиве, пропускаем"
 fi
 
-# ─── Восстановление данных Marzban ────────────────────────────────────────────
+# ─── Восстановление данных PasarGuard ────────────────────────────────────────
 
-log "Восстановление данных Marzban..."
-if [[ -d "${BACKUP_CONTENT_DIR}/marzban-data" ]]; then
-    rsync -a "${BACKUP_CONTENT_DIR}/marzban-data/" "${MARZBAN_DATA}/"
-    log "Данные Marzban восстановлены"
+log "Восстановление данных PasarGuard..."
+if [[ -d "${BACKUP_CONTENT_DIR}/pasarguard-data" ]]; then
+    rsync -a "${BACKUP_CONTENT_DIR}/pasarguard-data/" "${PASARGUARD_DATA}/"
+    log "Данные PasarGuard восстановлены"
 else
-    log "Директория marzban-data не найдена, пропускаем"
+    log "Директория pasarguard-data не найдена, пропускаем"
 fi
 
 # ─── Восстановление конфигурации стека ────────────────────────────────────────
 
 log "Восстановление конфигурации стека..."
-if [[ -d "${BACKUP_CONTENT_DIR}/marzban-stack" ]]; then
-    rsync -a "${BACKUP_CONTENT_DIR}/marzban-stack/" "${STACK_DIR}/"
+if [[ -d "${BACKUP_CONTENT_DIR}/pasarguard-stack" ]]; then
+    rsync -a "${BACKUP_CONTENT_DIR}/pasarguard-stack/" "${STACK_DIR}/"
     log "Конфигурация стека восстановлена"
 else
-    log "Директория marzban-stack не найдена, пропускаем"
+    log "Директория pasarguard-stack не найдена, пропускаем"
 fi
 
 # ─── Запуск docker-compose ───────────────────────────────────────────────────

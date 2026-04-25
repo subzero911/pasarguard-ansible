@@ -1,0 +1,61 @@
+---
+- name: Удаление старой системы бэкапа Marzban
+  hosts: pasarguard_main
+  become: true
+
+  tasks:
+
+    # ─── Удаление cron job ─────────────────────────────────────────────────────
+
+    - name: Удалить cron job для Marzban backup
+      cron:
+        name: "Marzban backup to Google Drive"
+        state: absent
+
+    # ─── Удаление скриптов ─────────────────────────────────────────────────────
+
+    - name: Удалить скрипт бэкапа Marzban
+      file:
+        path: /usr/local/bin/backup-marzban.sh
+        state: absent
+
+    - name: Удалить скрипт восстановления Marzban
+      file:
+        path: /usr/local/bin/restore-marzban.sh
+        state: absent
+
+    # ─── Удаление logrotate ────────────────────────────────────────────────────
+
+    - name: Удалить logrotate конфиг для Marzban backup
+      file:
+        path: /etc/logrotate.d/marzban-backup
+        state: absent
+
+    # ─── Удаление логов ────────────────────────────────────────────────────────
+
+    - name: Удалить логи бэкапа Marzban
+      file:
+        path: /var/log/backup-marzban.log
+        state: absent
+
+    - name: Удалить логи восстановления Marzban
+      file:
+        path: /var/log/restore-marzban.log
+        state: absent
+
+    # ─── Инструкции ───────────────────────────────────────────────────────────
+
+    - name: Сообщение об удалении
+      debug:
+        msg:
+          - "══════════════════════════════════════════════════════════════"
+          - "СТАРАЯ СИСТЕМА БЭКАПА MARZBAN УДАЛЕНА"
+          - "══════════════════════════════════════════════════════════════"
+          - "Удалено:"
+          - "  - Cron job: Marzban backup to Google Drive"
+          - "  - Скрипт: /usr/local/bin/backup-marzban.sh"
+          - "  - Скрипт: /usr/local/bin/restore-marzban.sh"
+          - "  - Logrotate: /etc/logrotate.d/marzban-backup"
+          - "  - Логи: /var/log/backup-marzban.log"
+          - "  - Логи: /var/log/restore-marzban.log"
+          - "══════════════════════════════════════════════════════════════"

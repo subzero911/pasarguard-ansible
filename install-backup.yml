@@ -1,13 +1,13 @@
 ---
-- name: Настройка бэкапа Marzban на Google Drive
-  hosts: marzban_main
+- name: Настройка бэкапа PasarGuard на Google Drive
+  hosts: pasarguard_main
   become: true
 
   vars:
-    marzban_stack_dir: /opt/marzban-stack
-    marzban_data_dir: /var/lib/marzban
-    backup_script_path: /usr/local/bin/backup-marzban.sh
-    rclone_gdrive_remote: "gdrive:marzban-backups"  # имя remote:папка в Google Drive
+    pasarguard_stack_dir: /opt/pasarguard
+    pasarguard_data_dir: /var/lib/pasarguard
+    backup_script_path: /usr/local/bin/backup-pasarguard.sh
+    rclone_gdrive_remote: "gdrive:pasarguard-backups"  # имя remote:папка в Google Drive
     backup_keep_days: 7                              # сколько дней хранить бэкапы
     backup_cron_hour: "0"                            # час запуска (UTC) = 03:00 по UTC+3
     backup_cron_minute: "0"
@@ -46,7 +46,7 @@
 
     - name: Развернуть скрипт бэкапа
       template:
-        src: templates/backup-marzban.sh.j2
+        src: templates/backup-pasarguard.sh.j2
         dest: "{{ backup_script_path }}"
         mode: "0755"
         owner: root
@@ -54,8 +54,8 @@
 
     - name: Развернуть скрипт восстановления
       template:
-        src: templates/restore-marzban.sh.j2
-        dest: /usr/local/bin/restore-marzban.sh
+        src: templates/restore-pasarguard.sh.j2
+        dest: /usr/local/bin/restore-pasarguard.sh
         mode: "0755"
         owner: root
         group: root
@@ -64,8 +64,8 @@
 
     - name: Настроить logrotate для логов бэкапа и восстановления
       template:
-        src: templates/marzban-backup-logrotate.conf.j2
-        dest: /etc/logrotate.d/marzban-backup
+        src: templates/pasarguard-backup-logrotate.conf.j2
+        dest: /etc/logrotate.d/pasarguard-backup
         mode: "0644"
         owner: root
         group: root
@@ -74,7 +74,7 @@
 
     - name: Настроить cron для ежедневного бэкапа
       cron:
-        name: "Marzban backup to Google Drive"
+        name: "PasarGuard backup to Google Drive"
         hour: "{{ backup_cron_hour }}"
         minute: "{{ backup_cron_minute }}"
         job: "{{ backup_script_path }}"
@@ -108,12 +108,12 @@
           - "ПОСЛЕ НАСТРОЙКИ:"
           - "  Проверьте подключение: rclone lsd gdrive:"
           - "  Тест бэкапа:           {{ backup_script_path }}"
-          - "  Логи бэкапа:           tail -f /var/log/backup-marzban.log"
+          - "  Логи бэкапа:           tail -f /var/log/backup-pasarguard.log"
           - ""
           - "ВОССТАНОВЛЕНИЕ ИЗ БЭКАПА:"
-          - "  Посмотреть бэкапы:      rclone ls gdrive:marzban-backups/"
-          - "  Восстановить:          /usr/local/bin/restore-marzban.sh"
-          - "  Логи восстановления:    tail -f /var/log/restore-marzban.log"
+          - "  Посмотреть бэкапы:      rclone ls gdrive:pasarguard-backups/"
+          - "  Восстановить:          /usr/local/bin/restore-pasarguard.sh"
+          - "  Логи восстановления:    tail -f /var/log/restore-pasarguard.log"
           - ""
           - "Бэкап запускается ежедневно в {{ backup_cron_hour }}:00 UTC"
           - "Хранятся бэкапы за последние {{ backup_keep_days }} дней"
