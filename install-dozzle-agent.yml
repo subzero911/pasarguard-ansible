@@ -1,0 +1,33 @@
+---
+- name: Install Dozzle Agent
+  hosts: pasarguard_nodes
+  become: true
+
+  tasks:
+
+    - name: Install Python requests library for docker_container module
+      apt:
+        name: python3-requests
+        state: present
+
+    - name: Run Dozzle Agent container
+      docker_container:
+        name: dozzle-agent
+        image: amir20/dozzle:latest
+        restart_policy: always
+        command: agent
+        hostname: "{{ inventory_hostname }}"
+        ports:
+          - "7007:7007"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        log_driver: json-file
+        log_options:
+          max-size: "10m"
+          max-file: "5"
+
+    - name: Print result
+      debug:
+        msg:
+          - "Dozzle Agent установлен на {{ inventory_hostname }}"
+          - "Port: 7007"
