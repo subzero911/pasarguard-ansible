@@ -1,72 +1,33 @@
 ---
-- name: Update Xray core
-  hosts: marzban_nodes
+- name: Update PasarGuard Node
+  hosts: pasarguard_nodes
   become: true
   vars:
-    xray_version: "26.3.27"
-    xray_dir: "/var/lib/marzban/xray-core"
-    marzban_node_dir: "/opt/marzban-node"
-    marzban_data_dir: "/var/lib/marzban-node"
-    service_port: 62050
-    xray_api_port: 62051
+    pasarguard_node_dir: "/opt/pasarguard-node"
 
   tasks:
 
-    - name: Install unzip
-      apt:
-        name: unzip
-        state: present
-
-    - name: Create Xray directory
-      file:
-        path: "{{ xray_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Download Xray {{ xray_version }}
-      get_url:
-        url: "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-64.zip"
-        dest: "/tmp/xray-linux-64.zip"
-        force: yes
-
-    - name: Unzip Xray
-      unarchive:
-        src: "/tmp/xray-linux-64.zip"
-        dest: "{{ xray_dir }}"
-        remote_src: yes
-
-    - name: Set Xray executable permissions
-      file:
-        path: "{{ xray_dir }}/xray"
-        mode: "0755"
-
-    - name: Add XRAY_EXECUTABLE_PATH to docker-compose.yml
-      lineinfile:
-        path: "{{ marzban_node_dir }}/docker-compose.yml"
-        line: '      XRAY_EXECUTABLE_PATH: "{{ xray_dir }}/xray"'
-        insertafter: 'SERVICE_PROTOCOL'
-        regexp: 'XRAY_EXECUTABLE_PATH'
-
-    - name: Remove incorrect volume mapping if present
-      lineinfile:
-        path: "{{ marzban_node_dir }}/docker-compose.yml"
-        regexp: '^\s*-\s*/var/lib/marzban-node:/var/lib/marzban\s*$'
-        state: absent
-
-    - name: Add /var/lib/marzban volume to docker-compose.yml
-      lineinfile:
-        path: "{{ marzban_node_dir }}/docker-compose.yml"
-        line: '      - /var/lib/marzban:/var/lib/marzban'
-        insertafter: 'volumes:'
-        regexp: '^\s*-\s*/var/lib/marzban:/var/lib/marzban\s*$'
-
-    - name: Restart marzban-node container
-      shell: docker compose down --remove-orphans && docker compose up -d
+    - name: Pull latest PasarGuard Node image
+      shell: docker compose pull
       args:
-        chdir: "{{ marzban_node_dir }}"
+        chdir: "{{ pasarguard_node_dir }}"
+
+    - name: Restart PasarGuard Node
+      shell: docker compose up -d
+      args:
+        chdir: "{{ pasarguard_node_dir }}"
+
+    - name: Wait for container to be running
+      shell: docker compose ps --format json
+      args:
+        chdir: "{{ pasarguard_node_dir }}"
+      register: container_status
+      until: "'running' in container_status.stdout"
+      retries: 30
+      delay: 5
+      changed_when: false
 
     - name: Print result
       debug:
         msg:
-          - "Xray {{ xray_version }} установлен на {{ inventory_hostname }}"
-          - "Путь: {{ xray_dir }}/xray"
+          - "PasarGuard Node обновлен на {{ inventory_hostname }}"

@@ -1,15 +1,13 @@
 ---
-- name: Setup Marzban Node
-  hosts: marzban_nodes
+- name: Setup PasarGuard Node
+  hosts: pasarguard_nodes
   become: true
   vars:
-    marzban_node_dir: "/opt/marzban-node"
-    marzban_data_dir: "/var/lib/marzban-node"
+    pasarguard_node_dir: "/opt/pasarguard-node"
+    pasarguard_data_dir: "/var/lib/pasarguard-node"
     service_port: 62050
-    xray_api_port: 62051
-    extra_inbound_port: 10443
-    xray_version: "26.3.27"
-    xray_dir: "/var/lib/marzban/xray-core"
+    service_protocol: "grpc"
+    api_key: "{{ pasarguard_api_key }}"
 
   tasks:
 
@@ -40,120 +38,80 @@
         state: started
         enabled: yes
 
-    # ─── Marzban Node ─────────────────────────────────────────────────────────
+    # ─── PasarGuard Node ───────────────────────────────────────────────────────
 
-    - name: Create Marzban Node directory
+    - name: Create PasarGuard Node directory
       file:
-        path: "{{ marzban_node_dir }}"
+        path: "{{ pasarguard_node_dir }}"
         state: directory
         mode: "0755"
 
-    - name: Create Marzban data directory
+    - name: Create PasarGuard data directory
       file:
-        path: "{{ marzban_data_dir }}"
+        path: "{{ pasarguard_data_dir }}"
         state: directory
         mode: "0755"
 
-    # ─── Xray binary ──────────────────────────────────────────────────────────
-
-    - name: Create Xray directory
-      file:
-        path: "{{ xray_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Install unzip
-      apt:
-        name: unzip
-        state: present
-
-    - name: Download Xray {{ xray_version }}
+    - name: Download docker-compose.yml from PasarGuard repository
       get_url:
-        url: "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-64.zip"
-        dest: "/tmp/xray-linux-64.zip"
+        url: "https://raw.githubusercontent.com/PasarGuard/node/refs/heads/main/docker-compose.yml"
+        dest: "{{ pasarguard_node_dir }}/docker-compose.yml"
         force: yes
 
-    - name: Unzip Xray
-      unarchive:
-        src: "/tmp/xray-linux-64.zip"
-        dest: "{{ xray_dir }}"
-        remote_src: yes
-
-    - name: Set Xray executable permissions
+    - name: Create certificate directory
       file:
-        path: "{{ xray_dir }}/xray"
+        path: /var/lib/pg-node/certs
+        state: directory
         mode: "0755"
 
-    # ─── Marzban Node certs ───────────────────────────────────────────────────
+    - name: Generate self-signed SSL certificate
+      shell: |
+        openssl req -x509 -newkey rsa:4096 \
+          -keyout /var/lib/pg-node/certs/ssl_key.pem \
+          -out /var/lib/pg-node/certs/ssl_cert.pem \
+          -days 36500 -nodes \
+          -subj "/CN={{ ansible_host }}" \
+          -addext "subjectAltName = DNS:{{ ansible_host }},IP:{{ ansible_default_ipv4.address }}"
+      args:
+        creates: /var/lib/pg-node/certs/ssl_cert.pem
 
-    - name: Write panel client certificate to node
+    - name: Create .env file
       copy:
-        dest: "{{ marzban_data_dir }}/cert.pem"
-        content: "{{ panel_client_cert }}"
-        mode: "0644"
-
-    - name: Write docker-compose.yml
-      copy:
-        dest: "{{ marzban_node_dir }}/docker-compose.yml"
+        dest: "{{ pasarguard_node_dir }}/.env"
         content: |
-          services:
-            marzban-node:
-              container_name: marzban-node
-              image: gozargah/marzban-node:latest
-              restart: always
-              network_mode: host
-              environment:
-                SSL_CLIENT_CERT_FILE: "/var/lib/marzban-node/cert.pem"
-                SERVICE_PORT: "{{ service_port }}"
-                XRAY_API_PORT: "{{ xray_api_port }}"
-                SERVICE_PROTOCOL: "rest"
-                XRAY_EXECUTABLE_PATH: "{{ xray_dir }}/xray"
-              volumes:
-                - /var/lib/marzban:/var/lib/marzban
-                - /var/lib/marzban-node:/var/lib/marzban-node
-              logging:
-                driver: "json-file"
-                options:
-                  max-size: "10m"
-                  max-file: "5"
+          API_KEY={{ api_key }}
+          NODE_HOST=0.0.0.0
+          SERVICE_PORT={{ service_port }}
+          SERVICE_PROTOCOL={{ service_protocol }}
+          SSL_CERT_FILE=/var/lib/pg-node/certs/ssl_cert.pem
+          SSL_KEY_FILE=/var/lib/pg-node/certs/ssl_key.pem
+          PG_NODE_WG_HOST_ROUTING=1
+          DEBUG=false
+        mode: "0600"
 
-    # ─── Start Marzban Node ──────────────────────────────
+    # ─── Start PasarGuard Node ─────────────────────────────────────────────────
 
     - name: Stop and remove containers
       shell: docker compose down --remove-orphans
       args:
-        chdir: "{{ marzban_node_dir }}"
+        chdir: "{{ pasarguard_node_dir }}"
       ignore_errors: true
 
-    - name: Start Marzban Node
+    - name: Start PasarGuard Node
       shell: docker compose up -d
       args:
-        chdir: "{{ marzban_node_dir }}"
+        chdir: "{{ pasarguard_node_dir }}"
 
     # ─── Wait for container to be running ────────────────────────────────────
 
-    - name: Wait for marzban-node container to be running
-      shell: docker compose ps --format json marzban-node
+    - name: Wait for pasarguard-node container to be running
+      shell: docker compose ps --format json
       args:
-        chdir: "{{ marzban_node_dir }}"
+        chdir: "{{ pasarguard_node_dir }}"
       register: container_status
       until: "'running' in container_status.stdout"
       retries: 30
       delay: 5
-      changed_when: false
-
-    # ─── Generate xray keys ───────────────────────────────────────────────────
-
-    - name: Generate xray x25519 keypair
-      shell: docker compose exec -T marzban-node xray x25519
-      args:
-        chdir: "{{ marzban_node_dir }}"
-      register: xray_keypair
-      changed_when: false
-
-    - name: Generate shortId
-      command: openssl rand -hex 8
-      register: xray_short_id
       changed_when: false
 
     # ─── Dozzle Agent ─────────────────────────────────────────────────────────
@@ -181,18 +139,21 @@
 
     # ─── Output ───────────────────────────────────────────────────────────────
 
+    - name: Read SSL certificate
+      slurp:
+        src: /var/lib/pg-node/certs/ssl_cert.pem
+      register: ssl_cert
+
     - name: Print setup summary
       debug:
         msg:
           - "══════════════════════════════════════════"
-          - "MARZBAN NODE READY — {{ inventory_hostname }}"
+          - "PASARGUARD NODE READY — {{ inventory_hostname }}"
           - "══════════════════════════════════════════"
           - "Node address  : {{ ansible_host }}"
           - "Service port  : {{ service_port }}"
-          - "Xray API port : {{ xray_api_port }}"
-          - "Inbound port  : {{ extra_inbound_port }}"
+          - "Protocol      : {{ service_protocol }}"
           - "══════════════════════════════════════════"
-          - "xray x25519 Private key : {{ xray_keypair.stdout_lines[0] | regex_replace('^Private key: ', '') }}"
-          - "xray x25519 Public key  : {{ xray_keypair.stdout_lines[1] | regex_replace('^Public key: ', '') }}"
-          - "shortId                 : {{ xray_short_id.stdout }}"
+          - "SSL CERTIFICATE:"
+          - "{{ ssl_cert.content | b64decode }}"
           - "══════════════════════════════════════════"
