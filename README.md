@@ -98,52 +98,6 @@ ansible-playbook -i inventory.ini install-backup.yml -v
 tail -f /var/log/backup-marzban.log
 ```
 
-### Восстановление из бэкапа
-
-**Требования для восстановления:**
-
-Если устанавливали бэкап через `install-backup.yml` — всё уже готово.
-
-Если восстановление на новом сервере, нужно:
-- Docker и docker-compose
-- rclone с настроенным Google Drive (инструкции выше)
-- sqlite3, rsync (устанавливаются playbook)
-
-**Что восстанавливается из бэкапа:**
-- `/var/lib/marzban/db.sqlite3` — база данных
-- `/var/lib/marzban/` — данные Marzban (xray-конфиги, сертификаты)
-- `/opt/marzban-stack/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
-
-**Что НЕ восстанавливается (нужно установить отдельно):**
-- Docker и docker-compose
-- rclone (если не было до бэкапа)
-- Структура директорий (`/var/lib/marzban`, `/opt/marzban-stack`)
-
-**Посмотреть список бэкапов:**
-```bash
-rclone ls gdrive:marzban-backups/
-```
-
-**Восстановить интерактивно:**
-```bash
-/usr/local/bin/restore-marzban.sh
-```
-
-**Восстановить конкретный бэкап:**
-```bash
-/usr/local/bin/restore-marzban.sh marzban_backup_20240424_030000.tar.gz
-```
-
-**Логи восстановления:**
-```bash
-tail -f /var/log/restore-marzban.log
-```
-
-Скрипт восстановления:
-- Останавливает docker-compose стек
-- Восстанавливает базу данных, данные и конфигурацию
-- Запускает стек заново
-
 ### Настройка rclone с Google Drive
 
 После запуска playbook необходимо настроить rclone. Рекомендуемый вариант — SSH port forwarding.
@@ -212,3 +166,49 @@ rclone config
 ```bash
 rclone lsd gdrive:
 ```
+
+### Восстановление из бэкапа
+
+**Требования для восстановления:**
+
+Если устанавливали бэкап через `install-backup.yml` — всё уже готово.
+
+Если восстановление на новом сервере, нужно:
+- Docker и docker-compose
+- rclone с настроенным Google Drive (инструкции выше)
+- sqlite3, rsync (устанавливаются playbook)
+
+**Что восстанавливается из бэкапа:**
+- `/var/lib/marzban/db.sqlite3` — база данных
+- `/var/lib/marzban/` — данные Marzban (xray-конфиги, сертификаты)
+- `/opt/marzban-stack/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
+- Структура директорий — создаёт `/var/lib/marzban` и `/opt/marzban-stack` если их нет
+
+**Что НЕ восстанавливается (нужно установить отдельно):**
+- Docker и docker-compose
+- rclone (если не было до бэкапа)
+
+**Посмотреть список бэкапов:**
+```bash
+rclone ls gdrive:marzban-backups/
+```
+
+**Восстановить интерактивно:**
+```bash
+/usr/local/bin/restore-marzban.sh
+```
+
+**Восстановить конкретный бэкап:**
+```bash
+/usr/local/bin/restore-marzban.sh marzban_backup_20240424_030000.tar.gz
+```
+
+**Логи восстановления:**
+```bash
+tail -f /var/log/restore-marzban.log
+```
+
+Скрипт восстановления:
+- Останавливает docker-compose стек
+- Восстанавливает базу данных, данные и конфигурацию
+- Запускает стек заново
