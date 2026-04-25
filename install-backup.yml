@@ -77,7 +77,7 @@
         name: "Marzban backup to Google Drive"
         hour: "{{ backup_cron_hour }}"
         minute: "{{ backup_cron_minute }}"
-        job: "{{ backup_script_path }} >> /var/log/backup-marzban.log 2>&1"
+        job: "{{ backup_script_path }}"
         state: present
 
     # ─── Инструкции ───────────────────────────────────────────────────────────
