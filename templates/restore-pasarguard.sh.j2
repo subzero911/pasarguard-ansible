@@ -99,6 +99,20 @@ log "Остановка docker-compose стека..."
 cd "${STACK_DIR}"
 docker compose down || error_exit "Не удалось остановить docker-compose"
 
+# ─── Восстановление Docker volumes ────────────────────────────────────────────
+
+log "Восстановление Docker volumes..."
+for VOL_FILE in "${BACKUP_CONTENT_DIR}"/volumes/*.tar.gz; do
+    if [[ -f "${VOL_FILE}" ]]; then
+        VOL_NAME=$(basename "${VOL_FILE}" .tar.gz)
+        log "Восстановление Docker volume: ${VOL_NAME}..."
+        docker volume rm -f "${VOL_NAME}" || true
+        docker volume create "${VOL_NAME}" || true
+        docker run --rm -v "${VOL_NAME}:/target" -v "${BACKUP_CONTENT_DIR}/volumes:/backup" busybox sh -c "cd /target && tar xzf /backup/${VOL_NAME}.tar.gz"
+        log "Volume ${VOL_NAME} восстановлен"
+    fi
+done
+
 # ─── Восстановление базы данных ───────────────────────────────────────────────
 
 log "Восстановление базы данных..."

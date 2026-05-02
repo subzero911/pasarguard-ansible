@@ -37,6 +37,18 @@ rsync -a --exclude='db.sqlite3' "${PASARGUARD_DATA}/" "${TEMP_DIR}/pasarguard-da
 log "Бэкап конфигурации стека..."
 rsync -a --exclude='.git' "${STACK_DIR}/" "${TEMP_DIR}/pasarguard-stack/"
 
+# Бэкап Docker volumes
+VOLUMES=("caddy_data" "caddy_config" "bot_data" "api_data")
+mkdir -p "${TEMP_DIR}/volumes"
+for VOL in "${VOLUMES[@]}"; do
+    if docker volume inspect "${VOL}" >/dev/null 2>&1; then
+        log "Бэкап Docker volume: ${VOL}..."
+        docker run --rm -v "${VOL}:/source" -v "${TEMP_DIR}/volumes:/backup" busybox tar czf "/backup/${VOL}.tar.gz" -C /source .
+    else
+        log "Docker volume ${VOL} не найден, пропускаем"
+    fi
+done
+
 # Упаковываем всё в архив
 log "Архивирование..."
 tar -czf "/tmp/${BACKUP_NAME}.tar.gz" -C /tmp "${BACKUP_NAME}"
