@@ -29,9 +29,13 @@ else
     log "База данных SQLite не найдена, пропускаем"
 fi
 
-# Бэкап остальных данных PasarGuard (xray-конфиги, сертификаты и т.д.)
-log "Бэкап данных PasarGuard..."
-rsync -a --exclude='db.sqlite3' "${PASARGUARD_DATA}/" "${TEMP_DIR}/pasarguard-data/"
+# Бэкап конфига xray (только xray_config.json; бинарники xray-core не бэкапим — PasarGuard устанавливает их сам)
+log "Бэкап xray_config.json..."
+if [[ -f "${PASARGUARD_DATA}/xray_config.json" ]]; then
+    cp "${PASARGUARD_DATA}/xray_config.json" "${TEMP_DIR}/pasarguard-data/xray_config.json"
+else
+    log "xray_config.json не найден, пропускаем"
+fi
 
 # Бэкап конфигурации стека (docker-compose, .env, Caddyfile)
 log "Бэкап конфигурации стека..."
