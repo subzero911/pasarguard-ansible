@@ -5,6 +5,7 @@ set -euo pipefail
 RCLONE_REMOTE="{{ rclone_gdrive_remote }}"
 STACK_DIR="{{ pasarguard_stack_dir }}"
 PASARGUARD_DATA="{{ pasarguard_data_dir }}"
+COMPOSE_PROJECT=$(basename "${STACK_DIR}")
 TEMP_DIR="/tmp/restore-pasarguard-$$"
 LOG_FILE="/var/log/restore-pasarguard.log"
 
@@ -105,22 +106,29 @@ log "Восстановление Docker volumes..."
 for VOL_FILE in "${BACKUP_CONTENT_DIR}"/volumes/*.tar.gz; do
     if [[ -f "${VOL_FILE}" ]]; then
         VOL_NAME=$(basename "${VOL_FILE}" .tar.gz)
-        log "Восстановление Docker volume: ${VOL_NAME}..."
-        docker volume rm -f "${VOL_NAME}" || true
-        docker volume create "${VOL_NAME}" || true
-        docker run --rm -v "${VOL_NAME}:/target" -v "${BACKUP_CONTENT_DIR}/volumes:/backup" busybox sh -c "cd /target && tar xzf /backup/${VOL_NAME}.tar.gz"
-        log "Volume ${VOL_NAME} восстановлен"
+        FULL_VOL="${COMPOSE_PROJECT}_${VOL_NAME}"
+        log "Восстановление Docker volume: ${FULL_VOL}..."
+        docker volume rm -f "${FULL_VOL}" || true
+        docker volume create "${FULL_VOL}" || true
+        docker run --rm -v "${FULL_VOL}:/target" -v "${BACKUP_CONTENT_DIR}/volumes:/backup" busybox sh -c "cd /target && tar xzf /backup/${VOL_NAME}.tar.gz"
+        log "Volume ${FULL_VOL} восстановлен"
     fi
 done
 
 # ─── Восстановление базы данных ───────────────────────────────────────────────
 
-log "Восстановление базы данных..."
-if [[ -f "${BACKUP_CONTENT_DIR}/db.sqlite3" ]]; then
-    cp "${BACKUP_CONTENT_DIR}/db.sqlite3" "${PASARGUARD_DATA}/db.sqlite3"
-    log "База данных восстановлена"
+log "Восстановление базы данных PostgreSQL..."
+if [[ -f "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" ]]; then
+    log "Запуск контейнера postgres..."
+    cd "${STACK_DIR}"
+    docker compose up -d postgres
+    sleep 5
+    log "Восстановление дампа..."
+    gunzip -c "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" | \
+        docker compose exec -T postgres psql -U pasarguard
+    log "База данных PostgreSQL восстановлена"
 else
-    log "База данных не найдена в архиве, пропускаем"
+    log "Дамп PostgreSQL не найден в архиве, пропускаем"
 fi
 
 # ─── Восстановление данных PasarGuard ────────────────────────────────────────

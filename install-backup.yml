@@ -16,13 +16,13 @@
 
     # ─── Зависимости ──────────────────────────────────────────────────────────
 
-    - name: Установить зависимости (sqlite3, rsync)
+    - name: Установить зависимости (rsync, postgresql-client)
       apt:
         name:
-          - sqlite3
           - rsync
           - curl
           - unzip
+          - postgresql-client
         state: present
         update_cache: yes
 
