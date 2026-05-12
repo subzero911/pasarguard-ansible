@@ -125,7 +125,7 @@ if [[ -f "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" ]]; then
     sleep 5
     log "Восстановление дампа..."
     gunzip -c "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" | \
-        docker compose exec -T postgres psql -U pasarguard
+        docker compose exec -T postgres psql -U pasarguard -d pasarguard
     log "База данных PostgreSQL восстановлена"
 else
     log "Дамп PostgreSQL не найден в архиве, пропускаем"

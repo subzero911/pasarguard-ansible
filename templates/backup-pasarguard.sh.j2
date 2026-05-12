@@ -26,7 +26,7 @@ mkdir -p "${TEMP_DIR}/pasarguard-stack"
 log "Бэкап базы данных PostgreSQL..."
 if docker compose -f "${STACK_DIR}/docker-compose.yml" ps postgres | grep -q 'running\|Up'; then
     docker compose -f "${STACK_DIR}/docker-compose.yml" exec -T postgres \
-        pg_dumpall -U pasarguard | gzip > "${TEMP_DIR}/postgres_dump.sql.gz"
+        pg_dump -U pasarguard --clean --if-exists pasarguard | gzip > "${TEMP_DIR}/postgres_dump.sql.gz"
     log "Дамп PostgreSQL создан"
 else
     log "Контейнер postgres не запущен, пропускаем бэкап БД"
