@@ -127,7 +127,7 @@ log "Восстановление базы данных PostgreSQL..."
 if [[ -f "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" ]]; then
     log "Запуск контейнера postgres..."
     cd "${STACK_DIR}"
-    docker compose up -d postgres 2>/dev/null
+    docker compose up -d postgres
     sleep 5
     log "Восстановление дампа..."
     gunzip -c "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" | \
