@@ -28,16 +28,22 @@ echo "Доступные бэкапы:"
 rclone ls "${RCLONE_REMOTE}/" | awk '{print $2}' | sort -r
 echo ""
 
+LATEST_BACKUP=$(rclone ls "${RCLONE_REMOTE}/" | awk '{print $2}' | sort -r | head -1)
+
 # ─── Запросить имя файла ───────────────────────────────────────────────────────
 
 if [[ $# -eq 0 ]]; then
-    read -p "Введите имя файла бэкапа (например, pasarguard_backup_20240424_030000.tar.gz): " BACKUP_FILE
+    read -p "Введите имя файла бэкапа (Enter = последний: ${LATEST_BACKUP}): " BACKUP_FILE
+    if [[ -z "${BACKUP_FILE}" ]]; then
+        BACKUP_FILE="${LATEST_BACKUP}"
+        log "Выбран последний бэкап: ${BACKUP_FILE}"
+    fi
 else
     BACKUP_FILE="$1"
 fi
 
 if [[ -z "${BACKUP_FILE}" ]]; then
-    error_exit "Имя файла не указано"
+    error_exit "Бэкапы не найдены в ${RCLONE_REMOTE}"
 fi
 
 # ─── Скачать бэкап ───────────────────────────────────────────────────────────
