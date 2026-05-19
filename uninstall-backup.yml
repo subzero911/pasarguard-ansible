@@ -1,5 +1,5 @@
 ---
-- name: Удаление старой системы бэкапа Marzban
+- name: Удаление старой системы бэкапа PasarGuard
   hosts: pasarguard_main
   become: true
 
@@ -7,40 +7,40 @@
 
     # ─── Удаление cron job ─────────────────────────────────────────────────────
 
-    - name: Удалить cron job для Marzban backup
+    - name: Удалить cron job для PasarGuard backup
       cron:
-        name: "Marzban backup to Google Drive"
+        name: "PasarGuard backup to Google Drive"
         state: absent
 
     # ─── Удаление скриптов ─────────────────────────────────────────────────────
 
-    - name: Удалить скрипт бэкапа Marzban
+    - name: Удалить скрипт бэкапа PasarGuard
       file:
-        path: /usr/local/bin/backup-marzban.sh
+        path: /usr/local/bin/backup-pasarguard.sh
         state: absent
 
-    - name: Удалить скрипт восстановления Marzban
+    - name: Удалить скрипт восстановления PasarGuard
       file:
-        path: /usr/local/bin/restore-marzban.sh
+        path: /usr/local/bin/restore-pasarguard.sh
         state: absent
 
     # ─── Удаление logrotate ────────────────────────────────────────────────────
 
-    - name: Удалить logrotate конфиг для Marzban backup
+    - name: Удалить logrotate конфиг для PasarGuard backup
       file:
-        path: /etc/logrotate.d/marzban-backup
+        path: /etc/logrotate.d/pasarguard-backup
         state: absent
 
     # ─── Удаление логов ────────────────────────────────────────────────────────
 
-    - name: Удалить логи бэкапа Marzban
+    - name: Удалить логи бэкапа PasarGuard
       file:
-        path: /var/log/backup-marzban.log
+        path: /var/log/backup-pasarguard.log
         state: absent
 
-    - name: Удалить логи восстановления Marzban
+    - name: Удалить логи восстановления PasarGuard
       file:
-        path: /var/log/restore-marzban.log
+        path: /var/log/restore-pasarguard.log
         state: absent
 
     # ─── Инструкции ───────────────────────────────────────────────────────────
@@ -49,13 +49,13 @@
       debug:
         msg:
           - "══════════════════════════════════════════════════════════════"
-          - "СТАРАЯ СИСТЕМА БЭКАПА MARZBAN УДАЛЕНА"
+          - "СТАРАЯ СИСТЕМА БЭКАПА PASARGUARD УДАЛЕНА"
           - "══════════════════════════════════════════════════════════════"
           - "Удалено:"
-          - "  - Cron job: Marzban backup to Google Drive"
-          - "  - Скрипт: /usr/local/bin/backup-marzban.sh"
-          - "  - Скрипт: /usr/local/bin/restore-marzban.sh"
-          - "  - Logrotate: /etc/logrotate.d/marzban-backup"
-          - "  - Логи: /var/log/backup-marzban.log"
-          - "  - Логи: /var/log/restore-marzban.log"
+          - "  - Cron job: PasarGuard backup to Google Drive"
+          - "  - Скрипт: /usr/local/bin/backup-pasarguard.sh"
+          - "  - Скрипт: /usr/local/bin/restore-pasarguard.sh"
+          - "  - Logrotate: /etc/logrotate.d/pasarguard-backup"
+          - "  - Логи: /var/log/backup-pasarguard.log"
+          - "  - Логи: /var/log/restore-pasarguard.log"
           - "══════════════════════════════════════════════════════════════"
