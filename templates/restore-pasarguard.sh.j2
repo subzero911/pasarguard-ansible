@@ -104,7 +104,7 @@ log "Директории созданы: ${PASARGUARD_DATA}, ${STACK_DIR}"
 
 log "Остановка docker-compose стека..."
 cd "${STACK_DIR}"
-docker compose down 2>/dev/null || true
+docker compose down || error_exit "Не удалось остановить docker-compose"
 
 # ─── Восстановление Docker volumes ────────────────────────────────────────────
 
