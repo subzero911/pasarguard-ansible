@@ -1,6 +1,6 @@
 ---
 - name: Удаление старой системы бэкапа PasarGuard
-  hosts: pasarguard_main
+  hosts: all
   become: true
 
   tasks:

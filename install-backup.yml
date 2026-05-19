@@ -1,6 +1,6 @@
 ---
 - name: Настройка бэкапа PasarGuard на Google Drive
-  hosts: pasarguard_main
+  hosts: all
   become: true
 
   vars:
