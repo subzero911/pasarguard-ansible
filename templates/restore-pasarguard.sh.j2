@@ -104,7 +104,7 @@ log "Директории созданы: ${PASARGUARD_DATA}, ${STACK_DIR}"
 
 log "Остановка docker-compose стека..."
 cd "${STACK_DIR}"
-docker compose down || error_exit "Не удалось остановить docker-compose"
+docker compose down 2>/dev/null || true
 
 # ─── Восстановление Docker volumes ────────────────────────────────────────────
 
@@ -121,6 +121,27 @@ for VOL_FILE in "${BACKUP_CONTENT_DIR}"/volumes/*.tar.gz; do
     fi
 done
 
+# ─── Восстановление конфигурации стека ────────────────────────────────────────
+# (делаем первым — .env нужен для docker compose up ниже)
+
+log "Восстановление конфигурации стека..."
+if [[ -d "${BACKUP_CONTENT_DIR}/pasarguard-stack" ]]; then
+    rsync -a "${BACKUP_CONTENT_DIR}/pasarguard-stack/" "${STACK_DIR}/"
+    log "Конфигурация стека восстановлена"
+else
+    log "Директория pasarguard-stack не найдена, пропускаем"
+fi
+
+# ─── Восстановление данных PasarGuard ────────────────────────────────────────
+
+log "Восстановление данных PasarGuard..."
+if [[ -d "${BACKUP_CONTENT_DIR}/pasarguard-data" ]]; then
+    rsync -a "${BACKUP_CONTENT_DIR}/pasarguard-data/" "${PASARGUARD_DATA}/"
+    log "Данные PasarGuard восстановлены"
+else
+    log "Директория pasarguard-data не найдена, пропускаем"
+fi
+
 # ─── Восстановление базы данных ───────────────────────────────────────────────
 
 log "Восстановление базы данных PostgreSQL..."
@@ -135,26 +156,6 @@ if [[ -f "${BACKUP_CONTENT_DIR}/postgres_dump.sql.gz" ]]; then
     log "База данных PostgreSQL восстановлена"
 else
     log "Дамп PostgreSQL не найден в архиве, пропускаем"
-fi
-
-# ─── Восстановление данных PasarGuard ────────────────────────────────────────
-
-log "Восстановление данных PasarGuard..."
-if [[ -d "${BACKUP_CONTENT_DIR}/pasarguard-data" ]]; then
-    rsync -a "${BACKUP_CONTENT_DIR}/pasarguard-data/" "${PASARGUARD_DATA}/"
-    log "Данные PasarGuard восстановлены"
-else
-    log "Директория pasarguard-data не найдена, пропускаем"
-fi
-
-# ─── Восстановление конфигурации стека ────────────────────────────────────────
-
-log "Восстановление конфигурации стека..."
-if [[ -d "${BACKUP_CONTENT_DIR}/pasarguard-stack" ]]; then
-    rsync -a "${BACKUP_CONTENT_DIR}/pasarguard-stack/" "${STACK_DIR}/"
-    log "Конфигурация стека восстановлена"
-else
-    log "Директория pasarguard-stack не найдена, пропускаем"
 fi
 
 # ─── Запуск docker-compose ───────────────────────────────────────────────────
