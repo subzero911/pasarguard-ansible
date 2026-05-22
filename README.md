@@ -70,24 +70,6 @@ ansible-playbook -i inventory.ini setup-ufw-node.yml -e "panel_ip=159.194.221.58
 
 ---
 
-## Обновление Xray
-
-Для обновления Xray core на всех нодах:
-
-```bash
-ansible-playbook -i inventory.ini update-xray.yml -v
-```
-
-Playbook:
-- Скачивает указанную версию Xray
-- Обновляет бинарный файл
-- Настраивает путь к Xray в docker-compose.yml
-- Перезапускает контейнер pasarguard-node
-
-Версию Xray можно изменить в переменной `xray_version` в начале playbook.
-
----
-
 ## Бэкап и восстановление главной панели
 
 Playbook `install-backup.yml` принимает параметр `backup_backend`:
