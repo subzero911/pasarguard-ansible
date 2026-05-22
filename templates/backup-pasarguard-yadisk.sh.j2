@@ -5,7 +5,7 @@ set -euo pipefail
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="pasarguard_backup_${TIMESTAMP}"
 TEMP_DIR="/tmp/${BACKUP_NAME}"
-RCLONE_REMOTE="{{ rclone_yadisk_remote }}"
+RCLONE_REMOTE="{{ rclone_remote }}"
 KEEP_DAYS="{{ backup_keep_days }}"
 STACK_DIR="{{ pasarguard_stack_dir }}"
 PASARGUARD_DATA="{{ pasarguard_data_dir }}"

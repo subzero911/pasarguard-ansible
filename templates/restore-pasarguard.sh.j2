@@ -2,7 +2,7 @@
 # Скрипт восстановления PasarGuard из бэкапа Google Drive
 set -euo pipefail
 
-RCLONE_REMOTE="{{ rclone_gdrive_remote }}"
+RCLONE_REMOTE="{{ rclone_remote }}"
 STACK_DIR="{{ pasarguard_stack_dir }}"
 PASARGUARD_DATA="{{ pasarguard_data_dir }}"
 COMPOSE_PROJECT=$(basename "${STACK_DIR}")
