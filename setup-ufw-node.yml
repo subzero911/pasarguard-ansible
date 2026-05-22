@@ -47,10 +47,22 @@
         port: "8443"
         proto: tcp
 
+    - name: Check ispmanager UFW profile
+      stat:
+        path: /etc/ufw/applications.d/ispmanager
+      register: ispmanager_profile
+
     - name: Allow ispmanager (аварийный доступ)
       ufw:
         rule: allow
         name: ispmanager
+      when: ispmanager_profile.stat.exists
+
+    - name: Allow VNC (аварийный доступ через терминал хостинга)
+      ufw:
+        rule: allow
+        port: "5900"
+        proto: tcp
 
     - name: Allow panel → node port 62050 (только с IP панели)
       ufw:
