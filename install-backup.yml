@@ -1,13 +1,14 @@
 ---
-- name: Настройка бэкапа PasarGuard на Google Drive
+- name: Настройка бэкапа PasarGuard
   hosts: all
   become: true
 
   vars:
+    backup_backend: "gdrive"                         # gdrive | yadisk
     pasarguard_stack_dir: /opt/pasarguard
     pasarguard_data_dir: /var/lib/pasarguard
     backup_script_path: /usr/local/bin/backup-pasarguard.sh
-    rclone_gdrive_remote: "gdrive:pasarguard-backups"  # имя remote:папка в Google Drive
+    rclone_remote: "{{ 'gdrive' if backup_backend == 'gdrive' else 'yadisk' }}:pasarguard-backups"
     backup_keep_days: 7                              # сколько дней хранить бэкапы
     backup_cron_hour: "0"                            # час запуска (UTC) = 03:00 по UTC+3
     backup_cron_minute: "0"
@@ -46,7 +47,7 @@
 
     - name: Развернуть скрипт бэкапа
       template:
-        src: templates/backup-pasarguard.sh.j2
+        src: "templates/backup-pasarguard-{{ backup_backend }}.sh.j2"
         dest: "{{ backup_script_path }}"
         mode: "0755"
         owner: root
@@ -54,7 +55,7 @@
 
     - name: Развернуть скрипт восстановления
       template:
-        src: templates/restore-pasarguard.sh.j2
+        src: "templates/restore-pasarguard-{{ backup_backend }}.sh.j2"
         dest: /usr/local/bin/restore-pasarguard.sh
         mode: "0755"
         owner: root
@@ -74,19 +75,20 @@
 
     - name: Настроить cron для ежедневного бэкапа
       cron:
-        name: "PasarGuard backup to Google Drive"
+        name: "PasarGuard backup"
         hour: "{{ backup_cron_hour }}"
         minute: "{{ backup_cron_minute }}"
         job: "{{ backup_script_path }}"
         state: present
 
-    # ─── Инструкции ───────────────────────────────────────────────────────────
+    # ─── Инструкции: Google Drive ─────────────────────────────────────────────
 
     - name: Инструкции по настройке rclone с Google Drive
+      when: backup_backend == "gdrive"
       debug:
         msg:
           - "══════════════════════════════════════════════════════════════"
-          - "БЭКАП УСТАНОВЛЕН. НЕОБХОДИМА РУЧНАЯ НАСТРОЙКА RCLONE:"
+          - "БЭКАП УСТАНОВЛЕН. НЕОБХОДИМА РУЧНАЯ НАСТРОЙКА RCLONE (Google Drive):"
           - "══════════════════════════════════════════════════════════════"
           - ""
           - "ВАРИАНТ А: Настройка через браузер на локальной машине"
@@ -111,11 +113,50 @@
           - "  Логи бэкапа:           tail -f /var/log/backup-pasarguard.log"
           - ""
           - "ВОССТАНОВЛЕНИЕ ИЗ БЭКАПА:"
-          - "  Посмотреть бэкапы:      rclone ls gdrive:pasarguard-backups/"
+          - "  Посмотреть бэкапы:      rclone ls {{ rclone_remote }}/"
           - "  Восстановить:          /usr/local/bin/restore-pasarguard.sh"
           - "  Логи восстановления:    tail -f /var/log/restore-pasarguard.log"
           - ""
           - "Бэкап запускается ежедневно в {{ backup_cron_hour }}:00 UTC"
           - "Хранятся бэкапы за последние {{ backup_keep_days }} дней"
-          - "Папка на Google Drive: {{ rclone_gdrive_remote }}"
+          - "Папка: {{ rclone_remote }}"
+          - "══════════════════════════════════════════════════════════════"
+
+    # ─── Инструкции: Яндекс.Диск ──────────────────────────────────────────────
+
+    - name: Инструкции по настройке rclone с Яндекс.Диском
+      when: backup_backend == "yadisk"
+      debug:
+        msg:
+          - "══════════════════════════════════════════════════════════════"
+          - "БЭКАП УСТАНОВЛЕН. НЕОБХОДИМА РУЧНАЯ НАСТРОЙКА RCLONE (Яндекс.Диск):"
+          - "══════════════════════════════════════════════════════════════"
+          - ""
+          - "На сервере выполните:"
+          - "  rclone config"
+          - ""
+          - "Ответьте на вопросы:"
+          - "  → n (new remote)"
+          - "  → имя: yadisk"
+          - "  → тип: yandex (введите 'yandex' или выберите номер)"
+          - "  → client_id: оставьте пустым (Enter)"
+          - "  → client_secret: оставьте пустым (Enter)"
+          - "  → Use auto config? → n"
+          - "  → Откройте в браузере URL, который выведет rclone"
+          - "  → Авторизуйтесь в Яндексе и скопируйте код подтверждения"
+          - "  → Вставьте код в терминал"
+          - ""
+          - "ПОСЛЕ НАСТРОЙКИ:"
+          - "  Проверьте подключение: rclone lsd yadisk:"
+          - "  Тест бэкапа:           {{ backup_script_path }}"
+          - "  Логи бэкапа:           tail -f /var/log/backup-pasarguard.log"
+          - ""
+          - "ВОССТАНОВЛЕНИЕ ИЗ БЭКАПА:"
+          - "  Посмотреть бэкапы:     rclone ls {{ rclone_remote }}/"
+          - "  Восстановить:          /usr/local/bin/restore-pasarguard.sh"
+          - "  Логи восстановления:   tail -f /var/log/restore-pasarguard.log"
+          - ""
+          - "Бэкап запускается ежедневно в {{ backup_cron_hour }}:00 UTC"
+          - "Хранятся бэкапы за последние {{ backup_keep_days }} дней"
+          - "Папка на Яндекс.Диске: {{ rclone_remote }}"
           - "══════════════════════════════════════════════════════════════"

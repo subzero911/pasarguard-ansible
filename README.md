@@ -90,7 +90,35 @@ Playbook:
 
 ## Бэкап и восстановление главной панели
 
-### Установка бэкапа на Google Drive
+Playbook `install-backup.yml` принимает параметр `backup_backend`:
+
+| Значение | Хранилище | Среда |
+|----------|-----------|-------|
+| `gdrive` (по умолчанию) | Google Drive | DEV |
+| `yadisk` | Яндекс.Диск | PROD |
+
+### DEV — Google Drive
+
+```bash
+ansible-playbook -i inventory.ini install-backup.yml -v
+# или явно:
+ansible-playbook -i inventory.ini install-backup.yml -e "backup_backend=gdrive" -v
+```
+
+### PROD — Яндекс.Диск
+
+```bash
+ansible-playbook -i inventory.ini install-backup.yml -e "backup_backend=yadisk" -v
+```
+
+**После запуска** на сервере настроить rclone:
+
+- **Google Drive:** `rclone authorize 'drive'` локально, вставить токен на сервере через `rclone config`
+- **Яндекс.Диск:** `rclone config` на сервере → `yadisk` → `yandex` → авторизация через браузер
+
+---
+
+### Установка бэкапа (детали)
 
 Для настройки автоматического бэкапа главной панели Marzban на Google Drive:
 

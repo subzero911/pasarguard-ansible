@@ -1,0 +1,78 @@
+#!/bin/bash
+# Скрипт бэкапа PasarGuard → Яндекс.Диск (через rclone)
+set -euo pipefail
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_NAME="pasarguard_backup_${TIMESTAMP}"
+TEMP_DIR="/tmp/${BACKUP_NAME}"
+RCLONE_REMOTE="{{ rclone_yadisk_remote }}"
+KEEP_DAYS="{{ backup_keep_days }}"
+STACK_DIR="{{ pasarguard_stack_dir }}"
+PASARGUARD_DATA="{{ pasarguard_data_dir }}"
+COMPOSE_PROJECT=$(basename "${STACK_DIR}")
+LOG_FILE="/var/log/backup-pasarguard.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
+}
+
+log "=== Начало бэкапа ==="
+
+# Создаём временную директорию
+mkdir -p "${TEMP_DIR}/pasarguard-data"
+mkdir -p "${TEMP_DIR}/pasarguard-stack"
+
+# Бэкап PostgreSQL (через pg_dump внутри контейнера, работает без остановки)
+log "Бэкап базы данных PostgreSQL..."
+if docker compose -f "${STACK_DIR}/docker-compose.yml" ps postgres | grep -q 'running\|Up'; then
+    docker compose -f "${STACK_DIR}/docker-compose.yml" exec -T postgres \
+        pg_dump -U pasarguard --clean --if-exists pasarguard | gzip > "${TEMP_DIR}/postgres_dump.sql.gz"
+    log "Дамп PostgreSQL создан"
+else
+    log "Контейнер postgres не запущен, пропускаем бэкап БД"
+fi
+
+# Бэкап конфига xray (только xray_config.json; бинарники xray-core не бэкапим — PasarGuard устанавливает их сам)
+log "Бэкап xray_config.json..."
+if [[ -f "${PASARGUARD_DATA}/xray_config.json" ]]; then
+    cp "${PASARGUARD_DATA}/xray_config.json" "${TEMP_DIR}/pasarguard-data/xray_config.json"
+else
+    log "xray_config.json не найден, пропускаем"
+fi
+
+# Бэкап конфигурации стека (docker-compose, .env, Caddyfile)
+log "Бэкап конфигурации стека..."
+rsync -a --exclude='.git' "${STACK_DIR}/" "${TEMP_DIR}/pasarguard-stack/"
+
+# Бэкап Docker volumes
+VOLUMES=("caddy_data" "caddy_config" "bot_data" "api_data" "postgres_data")
+mkdir -p "${TEMP_DIR}/volumes"
+for VOL in "${VOLUMES[@]}"; do
+    FULL_VOL="${COMPOSE_PROJECT}_${VOL}"
+    if docker volume inspect "${FULL_VOL}" >/dev/null 2>&1; then
+        log "Бэкап Docker volume: ${FULL_VOL}..."
+        docker run --rm -v "${FULL_VOL}:/source" -v "${TEMP_DIR}/volumes:/backup" busybox tar czf "/backup/${VOL}.tar.gz" -C /source .
+    else
+        log "Docker volume ${FULL_VOL} не найден, пропускаем"
+    fi
+done
+
+# Упаковываем всё в архив
+log "Архивирование..."
+tar -czf "/tmp/${BACKUP_NAME}.tar.gz" -C /tmp "${BACKUP_NAME}"
+
+ARCHIVE_SIZE=$(du -sh "/tmp/${BACKUP_NAME}.tar.gz" | cut -f1)
+log "Размер архива: ${ARCHIVE_SIZE}"
+
+# Загружаем на Яндекс.Диск
+log "Загрузка на Яндекс.Диск (${RCLONE_REMOTE})..."
+rclone copy "/tmp/${BACKUP_NAME}.tar.gz" "${RCLONE_REMOTE}/"
+
+# Удаляем бэкапы старше KEEP_DAYS дней
+log "Удаление бэкапов старше ${KEEP_DAYS} дней..."
+rclone delete "${RCLONE_REMOTE}/" --min-age "${KEEP_DAYS}d"
+
+# Очищаем временные файлы
+rm -rf "${TEMP_DIR}" "/tmp/${BACKUP_NAME}.tar.gz"
+
+log "=== Бэкап завершён успешно: ${BACKUP_NAME}.tar.gz ==="
