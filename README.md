@@ -1,6 +1,6 @@
-# Marzban Ansible
+# PasarGuard Ansible
 
-Ansible playbook для автоматического развертывания Marzban Node на серверах.
+Ansible playbook для автоматического развертывания PasarGuard Node на серверах.
 
 ## Конфигурация
 
@@ -38,7 +38,7 @@ ansible-playbook -i inventory.ini install-node.yml -v
 - Создает необходимые директории
 - Генерирует SSL сертификаты для узла
 - Устанавливает клиентский сертификат панели
-- Запускает Marzban Node контейнер
+- Запускает PasarGuard Node контейнер
 - Генерирует xray ключи и shortId
 - Добавляет агент Dozzle
 
@@ -82,7 +82,7 @@ Playbook:
 - Скачивает указанную версию Xray
 - Обновляет бинарный файл
 - Настраивает путь к Xray в docker-compose.yml
-- Перезапускает контейнер marzban-node
+- Перезапускает контейнер pasarguard-node
 
 Версию Xray можно изменить в переменной `xray_version` в начале playbook.
 
@@ -100,15 +100,13 @@ Playbook `install-backup.yml` принимает параметр `backup_backen
 ### DEV — Google Drive
 
 ```bash
-ansible-playbook -i inventory.ini install-backup.yml -v
-# или явно:
-ansible-playbook -i inventory.ini install-backup.yml -e "backup_backend=gdrive" -v
+ansible-playbook -i inventory.ini install-backup.yml -l dev-panel -e "backup_backend=gdrive" -v
 ```
 
 ### PROD — Яндекс.Диск
 
 ```bash
-ansible-playbook -i inventory.ini install-backup.yml -e "backup_backend=yadisk" -v
+ansible-playbook -i inventory.ini install-backup.yml -l prod-panel -e "backup_backend=yadisk" -v
 ```
 
 **После запуска** на сервере настроить rclone:
@@ -120,39 +118,32 @@ ansible-playbook -i inventory.ini install-backup.yml -e "backup_backend=yadisk" 
 
 ### Установка бэкапа (детали)
 
-Для настройки автоматического бэкапа главной панели Marzban на Google Drive:
-
-```bash
-ansible-playbook -i inventory.ini install-backup.yml -v
-```
-
 **Требования:**
-- В `inventory.ini` должен быть указан хост в группе `[marzban_main]`
-- После запуска playbook необходимо настроить rclone с Google Drive (инструкции будут выведены в конце выполнения)
+- В `inventory.ini` должен быть указан хост в группе `[pasarguard]`
+- После запуска playbook необходимо настроить rclone (инструкции будут выведены в конце выполнения)
 
 **Что делает playbook:**
 - Устанавливает rclone, sqlite3, rsync
-- Развертывает скрипт бэкапа `/usr/local/bin/backup-marzban.sh`
-- Развертывает скрипт восстановления `/usr/local/bin/restore-marzban.sh`
+- Развертывает скрипт бэкапа `/usr/local/bin/backup-pasarguard.sh`
+- Развертывает скрипт восстановления `/usr/local/bin/restore-pasarguard.sh`
 - Настраивает cron для ежедневного бэкапа (по умолчанию в 00:00 UTC = 03:00 по UTC+3)
 - Хранит бэкапы за последние 7 дней
 
 **Что бэкапится:**
-- `/var/lib/marzban/db.sqlite3` — база данных (online-backup без остановки)
-- `/var/lib/marzban/` — данные Marzban (xray-конфиги, сертификаты)
-- `/opt/marzban-stack/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
+- `/var/lib/pasarguard/` — данные PasarGuard (xray-конфиги, сертификаты)
+- `/opt/pasarguard/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
 
 **Ручной запуск бэкапа:**
 ```bash
-/usr/local/bin/backup-marzban.sh
+/usr/local/bin/backup-pasarguard.sh
 ```
 
 **Логи бэкапа:**
 ```bash
-tail -f /var/log/backup-marzban.log
+tail -f /var/log/backup-pasarguard.log
 ```
 
-### Настройка rclone с Google Drive
+### Настройка rclone
 
 После запуска playbook необходимо настроить rclone. Рекомендуемый вариант — SSH port forwarding.
 
@@ -233,10 +224,9 @@ rclone lsd gdrive:
 - sqlite3, rsync (устанавливаются playbook)
 
 **Что восстанавливается из бэкапа:**
-- `/var/lib/marzban/db.sqlite3` — база данных
-- `/var/lib/marzban/` — данные Marzban (xray-конфиги, сертификаты)
-- `/opt/marzban-stack/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
-- Структура директорий — создаёт `/var/lib/marzban` и `/opt/marzban-stack` если их нет
+- `/var/lib/pasarguard/` — данные PasarGuard (xray-конфиги, сертификаты)
+- `/opt/pasarguard/` — конфигурация стека (docker-compose.yml, .env, Caddyfile)
+- Структура директорий — создаёт `/var/lib/pasarguard` и `/opt/pasarguard` если их нет
 
 **Что НЕ восстанавливается (нужно установить отдельно):**
 - Docker и docker-compose
@@ -244,22 +234,22 @@ rclone lsd gdrive:
 
 **Посмотреть список бэкапов:**
 ```bash
-rclone ls gdrive:marzban-backups/
+rclone ls gdrive:pasarguard-backups/
 ```
 
 **Восстановить интерактивно:**
 ```bash
-/usr/local/bin/restore-marzban.sh
+/usr/local/bin/restore-pasarguard.sh
 ```
 
 **Восстановить конкретный бэкап:**
 ```bash
-/usr/local/bin/restore-marzban.sh marzban_backup_20240424_030000.tar.gz
+/usr/local/bin/restore-pasarguard.sh pasarguard_backup_20240424_030000.tar.gz
 ```
 
 **Логи восстановления:**
 ```bash
-tail -f /var/log/restore-marzban.log
+tail -f /var/log/restore-pasarguard.log
 ```
 
 Скрипт восстановления:
