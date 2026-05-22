@@ -7,9 +7,14 @@
 
     # ─── Удаление cron job ─────────────────────────────────────────────────────
 
-    - name: Удалить cron job для PasarGuard backup
+    - name: Удалить cron job для PasarGuard backup (старое имя)
       cron:
         name: "PasarGuard backup to Google Drive"
+        state: absent
+
+    - name: Удалить cron job для PasarGuard backup (новое имя)
+      cron:
+        name: "PasarGuard backup"
         state: absent
 
     # ─── Удаление скриптов ─────────────────────────────────────────────────────
