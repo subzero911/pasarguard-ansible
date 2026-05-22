@@ -47,7 +47,7 @@
 
     - name: Развернуть скрипт бэкапа
       template:
-        src: "templates/backup-pasarguard-{{ backup_backend }}.sh.j2"
+        src: "templates/backup-pasarguard.sh.j2"
         dest: "{{ backup_script_path }}"
         mode: "0755"
         owner: root
@@ -55,7 +55,7 @@
 
     - name: Развернуть скрипт восстановления
       template:
-        src: "templates/restore-pasarguard-{{ backup_backend }}.sh.j2"
+        src: "templates/restore-pasarguard.sh.j2"
         dest: /usr/local/bin/restore-pasarguard.sh
         mode: "0755"
         owner: root

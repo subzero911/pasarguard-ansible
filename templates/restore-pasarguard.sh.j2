@@ -1,5 +1,5 @@
 #!/bin/bash
-# Скрипт восстановления PasarGuard из бэкапа Google Drive
+# Скрипт восстановления PasarGuard из бэкапа (через rclone)
 set -euo pipefail
 
 RCLONE_REMOTE="{{ rclone_remote }}"
@@ -20,7 +20,7 @@ error_exit() {
 
 # ─── Показать список бэкапов ──────────────────────────────────────────────────
 
-log "=== Получение списка бэкапов из Google Drive ==="
+log "=== Получение списка бэкапов ==="
 rclone ls "${RCLONE_REMOTE}/" || error_exit "Не удалось получить список бэкапов"
 
 echo ""

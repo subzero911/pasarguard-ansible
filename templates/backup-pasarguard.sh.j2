@@ -1,5 +1,5 @@
 #!/bin/bash
-# Скрипт бэкапа PasarGuard → Google Drive (через rclone)
+# Скрипт бэкапа PasarGuard (через rclone)
 set -euo pipefail
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -64,8 +64,8 @@ tar -czf "/tmp/${BACKUP_NAME}.tar.gz" -C /tmp "${BACKUP_NAME}"
 ARCHIVE_SIZE=$(du -sh "/tmp/${BACKUP_NAME}.tar.gz" | cut -f1)
 log "Размер архива: ${ARCHIVE_SIZE}"
 
-# Загружаем на Google Drive
-log "Загрузка на Google Drive (${RCLONE_REMOTE})..."
+# Загружаем в облако
+log "Загрузка в облако (${RCLONE_REMOTE})..."
 rclone copy "/tmp/${BACKUP_NAME}.tar.gz" "${RCLONE_REMOTE}/"
 
 # Удаляем бэкапы старше KEEP_DAYS дней
