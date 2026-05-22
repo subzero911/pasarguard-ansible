@@ -1,0 +1,71 @@
+---
+- name: Setup UFW on node
+  hosts: pasarguard_nodes
+  become: true
+  vars:
+    panel_ip: "{{ panel_ip }}"
+
+  tasks:
+
+    - name: Install ufw
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+
+    - name: Set default incoming policy — deny
+      ufw:
+        default: deny
+        direction: incoming
+
+    - name: Set default outgoing policy — allow
+      ufw:
+        default: allow
+        direction: outgoing
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+
+    - name: Allow HTTP (клиентский трафик)
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+
+    - name: Allow HTTPS (клиентский трафик)
+      ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+
+    - name: Allow HetrixTools agent
+      ufw:
+        rule: allow
+        port: "8443"
+        proto: tcp
+
+    - name: Allow ispmanager (аварийный доступ)
+      ufw:
+        rule: allow
+        name: ispmanager
+
+    - name: Allow panel → node port 62050 (только с IP панели)
+      ufw:
+        rule: allow
+        port: "62050"
+        proto: tcp
+        src: "{{ panel_ip }}"
+
+    - name: Allow panel → node port 62051 (только с IP панели)
+      ufw:
+        rule: allow
+        port: "62051"
+        proto: tcp
+        src: "{{ panel_ip }}"
+
+    - name: Enable UFW
+      ufw:
+        state: enabled

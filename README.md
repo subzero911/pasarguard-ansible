@@ -44,6 +44,32 @@ ansible-playbook -i inventory.ini install-node.yml -v
 
 ---
 
+## Настройка UFW на нодах
+
+Playbook `setup-ufw-node.yml` настраивает UFW на нодах: выставляет политики по умолчанию, открывает нужные порты и ограничивает порты `62050`/`62051` только с IP панели.
+
+**Обязательный параметр:** `panel_ip` — внешний IP сервера панели.
+
+### DEV (панель smart-sausage.de, IP `185.121.134.157`)
+
+```bash
+ansible-playbook -i inventory.ini setup-ufw-node.yml -e "panel_ip=185.121.134.157" -v
+```
+
+### PROD (панель domoi-panel.ru, IP `159.194.221.58`)
+
+```bash
+ansible-playbook -i inventory.ini setup-ufw-node.yml -e "panel_ip=159.194.221.58" -v
+```
+
+Запуск на конкретной ноде:
+
+```bash
+ansible-playbook -i inventory.ini setup-ufw-node.yml -e "panel_ip=159.194.221.58" -l node-nsk-1 -v
+```
+
+---
+
 ## Обновление Xray
 
 Для обновления Xray core на всех нодах:
