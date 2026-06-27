@@ -1,0 +1,89 @@
+---
+- name: Setup Caddy stub site on node
+  hosts: pasarguard_nodes
+  become: true
+  vars:
+    caddy_stub_dir: "/opt/caddy-stub"
+    caddy_stub_data_volume: "caddy_stub_data"
+
+  tasks:
+
+    # ─── Directories ─────────────────────────────────────────────────────────
+
+    - name: Create Caddy stub directory
+      file:
+        path: "{{ caddy_stub_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create Caddy stub srv directory
+      file:
+        path: "{{ caddy_stub_dir }}/srv"
+        state: directory
+        mode: "0755"
+
+    # ─── Files ─────────────────────────────────────────────────────────────────
+
+    - name: Copy stub site index.html
+      copy:
+        src: files/node-frontend/index.html
+        dest: "{{ caddy_stub_dir }}/srv/index.html"
+        mode: "0644"
+
+    - name: Render Caddyfile
+      template:
+        src: templates/caddy-stub/Caddyfile.j2
+        dest: "{{ caddy_stub_dir }}/Caddyfile"
+        mode: "0644"
+
+    # ─── Docker volume ───────────────────────────────────────────────────────
+
+    - name: Create Caddy data Docker volume
+      docker_volume:
+        name: "{{ caddy_stub_data_volume }}"
+        state: present
+
+    # ─── Caddy container ───────────────────────────────────────────────────────
+
+    - name: Remove existing Caddy stub container
+      docker_container:
+        name: caddy-stub
+        state: absent
+        force_kill: true
+
+    - name: Run Caddy stub container
+      docker_container:
+        name: caddy-stub
+        image: caddy:latest
+        restart_policy: always
+        network_mode: host
+        volumes:
+          - "{{ caddy_stub_dir }}/Caddyfile:/etc/caddy/Caddyfile"
+          - "{{ caddy_stub_dir }}/srv:/srv"
+          - "{{ caddy_stub_data_volume }}:/data"
+        log_driver: json-file
+        log_options:
+          max-size: "10m"
+          max-file: "5"
+
+    # ─── Firewall ────────────────────────────────────────────────────────────
+
+    - name: Allow Caddy stub port
+      ufw:
+        rule: allow
+        port: "{{ caddy_stub_port }}"
+        proto: tcp
+
+    # ─── Output ─────────────────────────────────────────────────────────────
+
+    - name: Print setup summary
+      debug:
+        msg:
+          - "══════════════════════════════════════════"
+          - "CADDY STUB READY — {{ inventory_hostname }}"
+          - "══════════════════════════════════════════"
+          - "Domain        : {{ caddy_stub_domain }}"
+          - "Port          : {{ caddy_stub_port }}"
+          - "Config path   : {{ caddy_stub_dir }}/Caddyfile"
+          - "Site path     : {{ caddy_stub_dir }}/srv/index.html"
+          - "══════════════════════════════════════════"

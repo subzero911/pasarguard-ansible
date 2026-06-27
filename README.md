@@ -42,6 +42,43 @@ ansible-playbook -i inventory.ini install-node.yml -v
 - Генерирует xray ключи и shortId
 - Добавляет агент Dozzle
 
+## Caddy stub site на нодах
+
+Playbook `install-caddy-stub.yml` поднимает Caddy с заглушкой-сайтом ("Купи слона") на каждой ноде. Используется для Reality fallback и self-steal TLS fingerprint.
+
+**Переменные** (задаются в `inventory.ini` или через `-e`):
+
+| Переменная | По умолчанию | Описание |
+|---|---|---|
+| `caddy_stub_domain` | `sw.smart-sausage.de` | Домен заглушки |
+| `caddy_stub_port` | `8443` | Порт заглушки |
+
+### Запуск на всех нодах
+
+```bash
+ansible-playbook -i inventory.ini install-caddy-stub.yml -v
+```
+
+### Запуск с другим доменом/портом
+
+```bash
+ansible-playbook -i inventory.ini install-caddy-stub.yml \
+  -e "caddy_stub_domain=sw.your-domain.com" \
+  -e "caddy_stub_port=8443" -v
+```
+
+### Запуск на одной ноде
+
+```bash
+ansible-playbook -i inventory.ini install-caddy-stub.yml -l node-nsk-1 -v
+```
+
+**Что делает playbook:**
+- Создаёт `/opt/caddy-stub` с `Caddyfile` и `srv/index.html`
+- Поднимает `caddy-stub` в Docker с `--network host`
+- Открывает порт в UFW
+- Caddy слушает `:80` (для ACME) и `domain:port` (для заглушки)
+
 ---
 
 ## Настройка UFW на нодах

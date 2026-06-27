@@ -1,0 +1,8 @@
+:80 {
+    respond "OK" 200
+}
+
+{{ caddy_stub_domain }}:{{ caddy_stub_port }} {
+    root * /srv
+    file_server
+}
