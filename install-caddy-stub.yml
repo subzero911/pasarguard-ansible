@@ -3,22 +3,22 @@
   hosts: pasarguard_nodes
   become: true
   vars:
-    caddy_stub_dir: "/opt/caddy-stub"
-    caddy_stub_data_volume: "caddy_stub_data"
+    pg_node_dir: "/opt/pg-node"
+    pg_node_caddy_dir: "{{ pg_node_dir }}/caddy"
 
   tasks:
 
     # ─── Directories ─────────────────────────────────────────────────────────
 
-    - name: Create Caddy stub directory
+    - name: Create Caddy config directory
       file:
-        path: "{{ caddy_stub_dir }}"
+        path: "{{ pg_node_caddy_dir }}"
         state: directory
         mode: "0755"
 
-    - name: Create Caddy stub srv directory
+    - name: Create Caddy srv directory
       file:
-        path: "{{ caddy_stub_dir }}/srv"
+        path: "{{ pg_node_caddy_dir }}/srv"
         state: directory
         mode: "0755"
 
@@ -27,52 +27,41 @@
     - name: Copy stub site index.html
       copy:
         src: files/node-frontend/index.html
-        dest: "{{ caddy_stub_dir }}/srv/index.html"
+        dest: "{{ pg_node_caddy_dir }}/srv/index.html"
         mode: "0644"
 
     - name: Render Caddyfile
       template:
         src: templates/caddy-stub/Caddyfile.j2
-        dest: "{{ caddy_stub_dir }}/Caddyfile"
+        dest: "{{ pg_node_caddy_dir }}/Caddyfile"
         mode: "0644"
 
-    # ─── Docker volume ───────────────────────────────────────────────────────
-
-    - name: Create Caddy data Docker volume
-      docker_volume:
-        name: "{{ caddy_stub_data_volume }}"
-        state: present
-
-    # ─── Caddy container ───────────────────────────────────────────────────────
-
-    - name: Remove existing Caddy stub container
-      docker_container:
-        name: caddy-stub
-        state: absent
-        force_kill: true
-
-    - name: Run Caddy stub container
-      docker_container:
-        name: caddy-stub
-        image: caddy:latest
-        restart_policy: always
-        network_mode: host
-        volumes:
-          - "{{ caddy_stub_dir }}/Caddyfile:/etc/caddy/Caddyfile"
-          - "{{ caddy_stub_dir }}/srv:/srv"
-          - "{{ caddy_stub_data_volume }}:/data"
-        log_driver: json-file
-        log_options:
-          max-size: "10m"
-          max-file: "5"
+    - name: Render docker-compose.yml with Caddy
+      template:
+        src: templates/docker-compose-pg-node.yml.j2
+        dest: "{{ pg_node_dir }}/docker-compose.yml"
+        mode: "0644"
 
     # ─── Firewall ────────────────────────────────────────────────────────────
+
+    - name: Allow HTTP port for Caddy ACME
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
 
     - name: Allow Caddy stub port
       ufw:
         rule: allow
         port: "{{ caddy_stub_port }}"
         proto: tcp
+
+    # ─── Start services ──────────────────────────────────────────────────────
+
+    - name: Start node and caddy
+      shell: docker compose up -d
+      args:
+        chdir: "{{ pg_node_dir }}"
 
     # ─── Output ─────────────────────────────────────────────────────────────
 
@@ -84,6 +73,7 @@
           - "══════════════════════════════════════════"
           - "Domain        : {{ caddy_stub_domain }}"
           - "Port          : {{ caddy_stub_port }}"
-          - "Config path   : {{ caddy_stub_dir }}/Caddyfile"
-          - "Site path     : {{ caddy_stub_dir }}/srv/index.html"
+          - "Config path   : {{ pg_node_caddy_dir }}/Caddyfile"
+          - "Compose path  : {{ pg_node_dir }}/docker-compose.yml"
+          - "Site path     : {{ pg_node_caddy_dir }}/srv/index.html"
           - "══════════════════════════════════════════"

@@ -1,0 +1,31 @@
+services:
+  node:
+    container_name: node
+    image: pasarguard/node:latest
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    env_file: .env
+    volumes:
+      - /var/lib/pg-node:/var/lib/pg-node
+
+  caddy:
+    container_name: caddy
+    image: caddy:latest
+    restart: always
+    network_mode: host
+    volumes:
+      - /opt/pg-node/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - /opt/pg-node/caddy/srv:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  caddy_data:
+  caddy_config:
