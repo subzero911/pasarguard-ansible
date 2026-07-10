@@ -45,7 +45,7 @@
     - name: Allow PasarGuard XHTTP
       ufw:
         rule: allow
-        port: "11114"
+        port: "8080"
         proto: tcp
         comment: "PasarGuard XHTTP"
 
