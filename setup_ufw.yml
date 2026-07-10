@@ -38,7 +38,7 @@
     - name: Allow PasarGuard Hysteria (UDP)
       ufw:
         rule: allow
-        port: "29414"
+        port: "443"
         proto: udp
         comment: "PasarGuard Hysteria"
 
