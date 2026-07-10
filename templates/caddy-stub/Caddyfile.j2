@@ -3,6 +3,7 @@
 }
 
 {{ caddy_stub_domain }}:{{ caddy_stub_port }} {
+    bind 127.0.0.1
     root * /srv
     file_server
 }
