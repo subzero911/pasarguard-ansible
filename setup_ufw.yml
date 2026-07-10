@@ -1,0 +1,92 @@
+---
+- name: Setup UFW firewall on PasarGuard nodes
+  hosts: pasarguard_nodes
+  become: true
+  gather_facts: false
+
+  tasks:
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  Базовые порты, необходимые для управления и маскировки ноды
+    # ─────────────────────────────────────────────────────────────────────────
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        comment: "SSH access"
+
+    - name: Allow HTTP for Caddy ACME challenges and Reality fallback probe
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+        comment: "Caddy ACME HTTP-01 / Reality fallback"
+
+    - name: Allow HTTPS for VLESS TCP Reality
+      ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+        comment: "VLESS TCP Reality"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  Порты PasarGuard сервисов
+    # ─────────────────────────────────────────────────────────────────────────
+
+    - name: Allow PasarGuard Hysteria (UDP)
+      ufw:
+        rule: allow
+        port: "29414"
+        proto: udp
+        comment: "PasarGuard Hysteria"
+
+    - name: Allow PasarGuard XHTTP
+      ufw:
+        rule: allow
+        port: "11114"
+        proto: tcp
+        comment: "PasarGuard XHTTP"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  Порты связи ноды с панелью (доступ только с IP панели)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    - name: Allow panel-to-node communication on 62050
+      ufw:
+        rule: allow
+        src: "185.121.134.157"
+        port: "62050"
+        proto: tcp
+        comment: "PasarGuard panel to node (62050)"
+
+    - name: Allow panel-to-node communication on 62051
+      ufw:
+        rule: allow
+        src: "185.121.134.157"
+        port: "62051"
+        proto: tcp
+        comment: "PasarGuard panel to node (62051)"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  Порт 8443 (Caddy fallback) должен быть закрыт снаружи,
+    #  так как Caddy слушает только на 127.0.0.1
+    # ─────────────────────────────────────────────────────────────────────────
+
+    - name: Ensure Caddy fallback port 8443 is not exposed externally
+      ufw:
+        rule: deny
+        port: "8443"
+        proto: tcp
+        comment: "Caddy fallback (localhost only)"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  Активация фаервола с политикой deny по умолчанию
+    # ─────────────────────────────────────────────────────────────────────────
+
+    - name: Enable UFW with default deny policy
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
