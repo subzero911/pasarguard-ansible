@@ -1,6 +1,6 @@
 ---
 - name: Настройка бэкапа PasarGuard
-  hosts: all
+  hosts: pasarguard
   become: true
 
   vars:
